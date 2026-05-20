@@ -29,8 +29,8 @@ running.
 Quick start:
 
 ```bash
-git clone <repo-url>
-cd rig
+git clone https://github.com/hongquan0905172414-netizen/PC-Builder-APP.git
+cd PC-Builder-APP
 npm install
 npm run dev
 ```
