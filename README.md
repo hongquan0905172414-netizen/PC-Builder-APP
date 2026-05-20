@@ -53,15 +53,59 @@ picture. Claude Code reads it automatically.
 ## Folder structure
 
 ```
-/app          → Pages (the screens you see)
+/app          → Next.js pages — each folder is a URL route
+  page.tsx           → the home page at /
+  layout.tsx         → shared layout wrapping every page
+  globals.css        → global styles (Tailwind directives)
+  +home              → /home route
+    page.tsx         → Home tab content
+  +my-parts          → /my-parts route
+    page.tsx         → My Parts tab content
+  +assembly          → /assembly route
+    page.tsx         → Assembly tab content
+  +troubleshoot      → /troubleshoot route
+    page.tsx         → Troubleshoot tab content
+  +marketplace       → /marketplace route
+    page.tsx         → Marketplace tab content (parked for v1)
+
 /components   → React components (Skeleton + Design)
-  /ui         → Reusable styled primitives
-/lib          → Business logic (Brains)
-  /rules-engine → The validation rules
-  /types      → Shared TypeScript types
-/data         → JSON: parts catalog, validation rules
-/docs         → Documentation for the team
-/public       → Static assets (icons, images)
+  +ui                → Reusable styled primitives
+                       (RigButton, RigCard, RigAlert, etc. — empty for now)
+    README.md        → notes on what goes here
+  README.md          → notes on what goes here
+
+/lib          → Business logic (Brains) — no React, no UI
+  +rules-engine
+    index.ts         → the validate(build) function (stub for now)
+    CLAUDE.md        → folder-specific notes for Claude Code
+  +types
+    index.ts         → shared TypeScript types (Part, Build, Warning)
+
+/data         → JSON files (no code)
+  README.md          → notes on parts catalog and rules format
+
+/docs         → Project documentation
+  README.md          → docs index
+  SETUP.md           → beginner setup guide (start here if new)
+  ARCHITECTURE.md    → how the project is structured
+
+/public       → Static assets served at the root URL
+  +icons             → icon files (empty for now)
+  README.md          → notes on static assets
+
+Root files
+  CLAUDE.md          → project context for AI tooling
+  README.md          → project overview
+  package.json       → project info + dependencies (npm reads this)
+  package-lock.json  → exact dependency versions (generated, don't edit)
+  tsconfig.json      → TypeScript settings
+  next.config.ts     → Next.js settings
+  tailwind.config.ts → Tailwind CSS design tokens
+  postcss.config.mjs → PostCSS settings (Tailwind needs this)
+  vitest.config.ts   → test runner settings
+  next-env.d.ts      → Next.js TypeScript declarations (generated, don't edit)
+  .gitignore         → tells Git which files to ignore
+
 ```
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full
