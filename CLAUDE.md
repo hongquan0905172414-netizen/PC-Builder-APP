@@ -105,15 +105,11 @@ with, that's fine. We can refactor when it actually matters.
 
 ---
 
-## Team
 
-- **Quân** — lead, the most experienced coder on the team.
-- **Other teammates** — learning to code, contributing via Claude
-  Code and gradually picking up skills. Also contributing through
-  non-code work: parts data, design ideas, copywriting, user testing.
 
 No deadline. Learning is part of the goal. Real users are a future
 ambition, not a v1 requirement.
+No push with sight of AI or Claude used when pushing the code, dont let claude be in the contribution of the github
 
 ---
 
@@ -149,3 +145,4 @@ the most exciting part, we follow that.
   rewrite it.
 - If you find yourself working around something this document says,
   the document is probably wrong — change the document.
+  
