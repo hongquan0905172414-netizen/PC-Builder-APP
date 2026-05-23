@@ -96,7 +96,4 @@ the team works, current decisions.
 - Commits are attributed to the human author — no AI co-author
   trailers.
 
-## Team
 
-Beginner team project. Lead: Quân. Learning together, no deadline.
-We work step by step and figure things out as we go.
