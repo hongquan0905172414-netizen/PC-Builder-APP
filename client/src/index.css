@@ -1,14 +1,87 @@
-/* Global styles for the app.
- *
- * This is plain CSS — no framework, no build tricks. Add styles here
- * as the app grows. When a component needs its own styles, you can
- * either add them here or make a separate .css file next to that
- * component and import it.
- *
- * Right now this just sets a few sensible defaults.
- */
+/*
+================================================================
+  index.css — Global styles and design tokens
+================================================================
 
-/* A simple reset so the page doesn't have weird default margins. */
+  SECTIONS:
+    1. Design tokens (:root)  — all colors, fonts, spacing
+    2. Base / Reset           — global defaults
+    3. Nav                    — top navigation bar
+    4. Home page              — landing page styles
+    5. Shared / Wizard        — option buttons, screen layout
+    6. Quiz screen            — progress bar, question, nav
+    7. Results screen         — parts list, meta chips
+    8. Tweak screen           — all-questions-at-once layout
+
+  WANT TO RETHEME THE APP?
+    Edit the variables in section 1 (:root).
+    Every color/size that uses var(--...) updates globally.
+
+  ADDING A NEW COMPONENT?
+    Add its styles here under a clearly labeled section comment,
+    or create a separate .css file next to the component and
+    import it in that component's .jsx file.
+================================================================
+*/
+
+
+/* ============================================================
+   1. DESIGN TOKENS
+      All colors, fonts, and spacing live here.
+      Change a value here → it updates everywhere.
+============================================================ */
+:root {
+  /* -- Brand colors ---------------------------------------- */
+  --color-accent:        #3b9eff;   /* Blue: logo, buttons, links  */
+  --color-accent-hover:  #2485e8;   /* Darker blue on hover        */
+  --color-accent-dim:    #0d2340;   /* Selected option background  */
+
+  /* -- Page backgrounds ------------------------------------ */
+  --color-bg:            #000000;   /* Page background             */
+  --color-surface:       #1a1a1a;   /* Cards, nav active bg        */
+  --color-surface-2:     #111111;   /* Deeper surface              */
+
+  /* -- Borders --------------------------------------------- */
+  --color-border:        #2a2a2a;   /* Default borders             */
+  --color-border-subtle: #1e1e1e;   /* Parts list row dividers     */
+
+  /* -- Text colors ----------------------------------------- */
+  --color-text-primary:  #ffffff;   /* Main text                   */
+  --color-text-muted:    #888888;   /* Nav links, labels           */
+  --color-text-dimmed:   #555555;   /* Body copy, descriptions     */
+  --color-text-faded:    #444444;   /* Ghost / decorative text     */
+
+  /* -- Status: success ------------------------------------- */
+  --color-success:        #22c55e;
+  --color-success-bg:     #0a1f13;
+  --color-success-border: rgba(34, 197, 94, 0.2);
+
+  /* -- Typography ------------------------------------------ */
+  --font-family:     -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-base:  15px;
+  --font-size-nav:   14px;
+  --font-size-sm:    13px;
+  --font-size-xs:    12px;
+
+  /* -- Spacing --------------------------------------------- */
+  --nav-padding:   14px 28px;
+  --hero-padding:  80px 24px;
+
+  /* -- Shape ----------------------------------------------- */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-pill: 999px;
+
+  /* -- Motion ---------------------------------------------- */
+  --transition-fast: 0.15s;
+}
+
+
+/* ============================================================
+   2. BASE / RESET
+      Edit here only for font family or base layout changes.
+============================================================ */
 * {
   margin: 0;
   padding: 0;
@@ -16,6 +89,421 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
+  background:  var(--color-bg);
+  color:       var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size:   var(--font-size-base);
+  min-height:  100vh;
+}
+
+
+/* ============================================================
+   3. NAV
+      Used on both Home and Wizard pages.
+
+      DEBUG: If links aren't centered, check .nav-links.
+      It uses position:absolute + translateX(-50%) so it centers
+      independently of any items on the left or right.
+============================================================ */
+.nav {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         var(--nav-padding);
+  position:        relative; /* required for .nav-links centering */
+}
+
+.logo {
+  font-size:   var(--font-size-base);
+  font-weight: 600;
+}
+.logo-accent { color: var(--color-accent); }
+
+.nav-links {
+  position:    absolute;
+  left:        50%;
+  transform:   translateX(-50%);
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+}
+.nav-links a {
+  font-size:       var(--font-size-nav);
+  text-decoration: none;
+  padding:         6px 14px;
+  border-radius:   var(--radius-sm);
+  color:           var(--color-text-muted);
+  transition:      color var(--transition-fast);
+  cursor:          pointer;
+}
+.nav-links a:hover  { color: #ccc; }
+.nav-links a.active {
+  background: var(--color-surface);
+  border:     0.5px solid var(--color-border);
+  color:      var(--color-text-primary);
+}
+
+
+/* ============================================================
+   4. HOME PAGE
+      Edit here for: headline sizes, hero spacing, CTA button.
+============================================================ */
+.hero {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  text-align:      center;
+  padding:         var(--hero-padding);
+  flex:            1;
+}
+
+.hero-headline {
+  font-size:      48px;
+  font-weight:    700;
+  letter-spacing: -1.5px;
+  line-height:    1.1;
+  color:          var(--color-text-primary);
+}
+
+/* Ghost / faded second headline — decorative contrast effect */
+.hero-subheadline {
+  font-size:      48px;
+  font-weight:    700;
+  letter-spacing: -1.5px;
+  line-height:    1.1;
+  color:          var(--color-text-faded);
+  margin-bottom:  20px;
+}
+
+.hero-description {
+  font-size:     var(--font-size-base);
+  color:         var(--color-text-dimmed);
+  line-height:   1.7;
+  margin-bottom: 36px;
+}
+
+.btn-cta {
+  background:    var(--color-accent);
+  color:         #fff;
+  border:        none;
+  border-radius: var(--radius-pill);
+  padding:       14px 32px;
+  font-size:     var(--font-size-base);
+  font-weight:   500;
+  cursor:        pointer;
+  font-family:   var(--font-family);
+  transition:    background var(--transition-fast), transform 0.1s;
+}
+.btn-cta:hover  { background: var(--color-accent-hover); }
+.btn-cta:active { transform: scale(0.97); }
+
+
+/* ============================================================
+   5. SHARED — SCREENS, OPTION BUTTONS, GHOST/PRIMARY BUTTONS
+      Used on multiple wizard screens.
+============================================================ */
+
+/* Screen wrapper — every wizard view uses this */
+.screen {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;  /* centered by default */
+  padding:         48px 24px;
+  max-width:       600px;
+  margin:          0 auto;
+  width:           100%;
+  flex:            1;
+}
+
+/* Override for longer content — align to top instead of center */
+.screen--top {
+  justify-content: flex-start;
+  padding-top:     40px;
+}
+
+.screen-title {
+  font-size:      24px;
+  font-weight:    700;
+  letter-spacing: -0.5px;
+  text-align:     center;
+  margin-bottom:  8px;
+}
+.screen-subtitle {
+  font-size:     var(--font-size-sm);
+  color:         var(--color-text-muted);
+  text-align:    center;
+  line-height:   1.6;
+  margin-bottom: 32px;
+}
+
+/* Option buttons — quiz + tweak screens */
+/* .selected is added by JS/React when the answer is chosen */
+.option-btn {
+  background:    var(--color-surface);
+  border:        0.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding:       14px 18px;
+  font-size:     var(--font-size-sm);
+  color:         var(--color-text-primary);
+  cursor:        pointer;
+  text-align:    left;
+  font-family:   var(--font-family);
+  transition:
+    background   var(--transition-fast),
+    border-color var(--transition-fast),
+    color        var(--transition-fast);
+}
+.option-btn:hover    { background: #222; border-color: #444; }
+.option-btn.selected {
+  background:   var(--color-accent-dim);
+  border-color: var(--color-accent);
+  color:        var(--color-accent);
+}
+
+/* Ghost button — secondary actions (back, tweak) */
+.btn-ghost {
+  background:    transparent;
+  border:        0.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding:       12px 24px;
+  font-size:     var(--font-size-sm);
+  color:         var(--color-text-muted);
+  cursor:        pointer;
+  font-family:   var(--font-family);
+  transition:    color var(--transition-fast), border-color var(--transition-fast);
+}
+.btn-ghost:hover { color: var(--color-text-primary); border-color: #555; }
+
+/* Primary button — forward actions (next, regenerate, happy) */
+.btn-primary {
+  background:    var(--color-accent);
+  border:        none;
+  border-radius: var(--radius-pill);
+  padding:       12px 28px;
+  font-size:     var(--font-size-sm);
+  font-weight:   500;
+  color:         #fff;
+  cursor:        pointer;
+  font-family:   var(--font-family);
+  transition:    background var(--transition-fast);
+}
+.btn-primary:hover    { background: var(--color-accent-hover); }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+
+/* ============================================================
+   6. QUIZ SCREEN
+============================================================ */
+.quiz-progress-row {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  width:           100%;
+  margin-bottom:   8px;
+}
+.quiz-progress-text {
+  font-size: var(--font-size-xs);
+  color:     var(--color-text-muted);
+}
+.quiz-progress-track {
+  width:         100%;
+  height:        2px;
+  background:    var(--color-surface);
+  border-radius: 1px;
+  margin-bottom: 36px;
+}
+.quiz-progress-fill {
+  height:        2px;
+  background:    var(--color-accent);
+  border-radius: 1px;
+  transition:    width 0.3s ease;
+}
+.quiz-question {
+  font-size:      22px;
+  font-weight:    600;
+  letter-spacing: -0.3px;
+  line-height:    1.3;
+  text-align:     center;
+  margin-bottom:  24px;
+}
+.quiz-options {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  width:          100%;
+  margin-bottom:  32px;
+}
+.quiz-nav {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  width:           100%;
+  gap:             12px;
+}
+
+
+/* ============================================================
+   7. CHOOSE PATH SCREEN
+============================================================ */
+.path-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap:     12px;
+  width:   100%;
+}
+.path-card {
+  background:    var(--color-surface);
+  border:        0.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding:       24px 20px;
+  cursor:        pointer;
+  text-align:    left;
+  font-family:   var(--font-family);
+  transition:    background var(--transition-fast), border-color var(--transition-fast);
+}
+.path-card:hover            { background: #1f1f1f; border-color: #444; }
+.path-card--highlighted     { border-color: var(--color-accent); }
+.path-card-eyebrow {
+  font-size:     var(--font-size-xs);
+  color:         var(--color-text-muted);
+  margin-bottom: 6px;
+}
+.path-card-title {
+  font-size:     var(--font-size-base);
+  font-weight:   600;
+  color:         var(--color-text-primary);
+  margin-bottom: 8px;
+}
+.path-card-desc {
+  font-size:  var(--font-size-xs);
+  color:      var(--color-text-muted);
+  line-height: 1.6;
+}
+
+
+/* ============================================================
+   8. RESULTS SCREEN
+============================================================ */
+.results-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  width:           100%;
+  margin-bottom:   16px;
+}
+.template-badge {
+  font-size:     var(--font-size-xs);
+  font-weight:   500;
+  background:    var(--color-success-bg);
+  color:         var(--color-success);
+  border:        0.5px solid var(--color-success-border);
+  padding:       4px 12px;
+  border-radius: var(--radius-pill);
+}
+.results-price {
+  font-size:   var(--font-size-base);
+  font-weight: 600;
+}
+.parts-list {
+  width:         100%;
+  background:    var(--color-surface);
+  border:        0.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow:      hidden;
+  margin-bottom: 12px;
+}
+.part-row {
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+  padding:       12px 16px;
+  border-bottom: 0.5px solid var(--color-border-subtle);
+}
+.part-row:last-child { border-bottom: none; }
+.part-category {
+  font-size:   var(--font-size-xs);
+  color:       var(--color-text-muted);
+  width:       110px;
+  flex-shrink: 0;
+}
+.part-name  { font-size: var(--font-size-sm); flex: 1; }
+.part-price {
+  font-size:       var(--font-size-xs);
+  color:           var(--color-accent);
+  text-decoration: none;
+  white-space:     nowrap;
+}
+.part-price:hover { text-decoration: underline; }
+
+.results-meta {
+  display:       grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:           8px;
+  width:         100%;
+  margin-bottom: 20px;
+}
+.meta-chip {
+  background:    var(--color-surface);
+  border:        0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding:       10px 12px;
+  text-align:    center;
+}
+.meta-label {
+  display:       block;
+  font-size:     10px;
+  color:         var(--color-text-muted);
+  margin-bottom: 3px;
+}
+.meta-val          { font-size: var(--font-size-sm); font-weight: 500; }
+.meta-val--ok      { color: var(--color-success); }
+.meta-val--info    { color: var(--color-accent); }
+
+.results-actions {
+  display:       flex;
+  gap:           10px;
+  width:         100%;
+}
+.assembly-teaser {
+  margin-top:   16px;
+  text-align:   center;
+  padding:      14px;
+  border:       0.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size:    var(--font-size-sm);
+  color:        var(--color-text-dimmed);
+}
+
+
+/* ============================================================
+   9. TWEAK SCREEN
+============================================================ */
+.tweak-header {
+  width:         100%;
+  text-align:    center;
+  margin-bottom: 28px;
+}
+.tweak-block {
+  width:         100%;
+  margin-bottom: 24px;
+}
+.tweak-q-label {
+  font-size:     var(--font-size-xs);
+  font-weight:   500;
+  color:         var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.tweak-options {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+.tweak-footer {
+  display:        flex;
+  gap:            10px;
+  width:          100%;
+  margin-top:     8px;
+  padding-bottom: 48px;
 }
