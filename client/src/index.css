@@ -1,0 +1,21 @@
+/* Global styles for the app.
+ *
+ * This is plain CSS — no framework, no build tricks. Add styles here
+ * as the app grows. When a component needs its own styles, you can
+ * either add them here or make a separate .css file next to that
+ * component and import it.
+ *
+ * Right now this just sets a few sensible defaults.
+ */
+
+/* A simple reset so the page doesn't have weird default margins. */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
