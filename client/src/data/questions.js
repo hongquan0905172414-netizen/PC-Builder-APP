@@ -26,12 +26,7 @@ export const QUESTIONS = [
     text: "What's your budget?",
     showIf: null,
     optionsFn: null,
-    options: [
-      { label: '~$500',                    value: '500'       },
-      { label: '~$700',                    value: '700'       },
-      { label: '~$1,000',                  value: '1000'      },
-      { label: 'Absolute best — no limit', value: 'unlimited' },
-    ],
+    options: [],
   },
   {
     id: 'goal',

@@ -55,6 +55,67 @@ function OptionBtn({ label, selected, onClick }) {
   );
 }
 
+function BudgetSlider({ value, onChange }) {
+  const maxBudget = 100000;
+  const budgetValue = Number(value) || 0;
+  const displayAmount = `$${budgetValue.toLocaleString()}`;
+  const fillPercent = Math.round((budgetValue / maxBudget) * 100);
+
+  return (
+    <div className="budget-slider">
+      <div className="budget-slider-header">
+        <div className="budget-slider-title">{displayAmount}</div>
+      </div>
+
+      <input
+        className="budget-input"
+        type="range"
+        min="0"
+        max={maxBudget}
+        step="100"
+        value={budgetValue}
+        onChange={(event) => onChange(String(event.target.value))}
+        style={{
+          background: `linear-gradient(90deg, var(--color-accent) ${fillPercent}%, var(--color-surface) ${fillPercent}%)`,
+        }}
+        aria-label="Budget slider"
+      />
+    </div>
+  );
+}
+
+function PcIllustration({ parts }) {
+  const mapByCategory = Object.fromEntries(parts.map((part) => [part.category, part]));
+
+  return (
+    <div className="pc-illustration-card">
+      <div className="pc-illustration-shell">
+        <div className="pc-case-shell">
+          <div className="pc-component pc-cpu">CPU</div>
+          <div className="pc-component pc-gpu">GPU</div>
+          <div className="pc-component pc-ram">RAM</div>
+          <div className="pc-component pc-storage">SSD</div>
+          <div className="pc-component pc-psu">PSU</div>
+        </div>
+      </div>
+      <div className="pc-illustration-meta">
+        <div className="pc-illustration-title">Your PC build</div>
+        <div className="pc-illustration-copy">
+          A clean assembly preview of your chosen core components.
+        </div>
+        <div className="pc-illustration-list">
+          {parts.map((part) => (
+            <div key={part.category} className="pc-illustration-item">
+              <span className="pc-illustration-label">{part.category}</span>
+              <span className="pc-illustration-value">{part.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The "choose your path" opening screen */
 function ChoosePathScreen({ onNeedHelp, onBuildOwn }) {
   return (
@@ -117,14 +178,21 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
 
       {/* Answer options */}
       <div className="quiz-options">
-        {opts.map((opt) => (
-          <OptionBtn
-            key={opt.value}
-            label={opt.label}
-            selected={answers[q.id] === opt.value}
-            onClick={() => onAnswer(q.id, opt.value)}
+        {q.id === 'budget' ? (
+          <BudgetSlider
+            value={answers[q.id]}
+            onChange={(value) => onAnswer(q.id, value)}
           />
-        ))}
+        ) : (
+          opts.map((opt) => (
+            <OptionBtn
+              key={opt.value}
+              label={opt.label}
+              selected={answers[q.id] === opt.value}
+              onClick={() => onAnswer(q.id, opt.value)}
+            />
+          ))
+        )}
       </div>
 
       {/* Navigation */}
@@ -166,6 +234,8 @@ function ResultsScreen({ template, onHappy, onTweak }) {
           <span className="template-badge">{template.id} · {template.name}</span>
           <span className="results-price">{template.price}</span>
         </div>
+
+        <PcIllustration parts={template.parts} />
 
         {/* Parts list
             TO CHANGE a part: edit data/templates.js, find the template, edit parts[] */}
@@ -242,14 +312,21 @@ function TweakScreen({ answers, onAnswerChange, onRegenerate, onBack }) {
             <div key={q.id} className="tweak-block">
               <div className="tweak-q-label">Q{index + 1} — {q.text}</div>
               <div className="tweak-options">
-                {opts.map((opt) => (
-                  <OptionBtn
-                    key={opt.value}
-                    label={opt.label}
-                    selected={answers[q.id] === opt.value}
-                    onClick={() => onAnswerChange(q.id, opt.value)}
+                {q.id === 'budget' ? (
+                  <BudgetSlider
+                    value={answers[q.id]}
+                    onChange={(value) => onAnswerChange(q.id, value)}
                   />
-                ))}
+                ) : (
+                  opts.map((opt) => (
+                    <OptionBtn
+                      key={opt.value}
+                      label={opt.label}
+                      selected={answers[q.id] === opt.value}
+                      onClick={() => onAnswerChange(q.id, opt.value)}
+                    />
+                  ))
+                )}
               </div>
             </div>
           );
@@ -277,7 +354,7 @@ export default function Wizard({ onBack }) {
   const [screen, setScreen] = useState('choose-path');
 
   // User's answers: { budget: '700', goal: 'gaming', ... }
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState({ budget: '50000' });
 
   // Current step index into the active question list (quiz mode)
   const [currentStep, setCurrentStep] = useState(0);
