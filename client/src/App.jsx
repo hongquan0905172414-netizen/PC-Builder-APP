@@ -23,22 +23,56 @@
 */
 
 import { useState } from 'react';
-import Home   from './pages/Home';
-import Wizard from './pages/Wizard';
+import Home        from './pages/Home';
+import Wizard      from './pages/Wizard';
+import PartsPicker from './pages/PartsPicker';
+
+function loadSavedBuild() {
+  try { return JSON.parse(localStorage.getItem('pc-build')) ?? null; }
+  catch { return null; }
+}
 
 export default function App() {
-  // Controls which top-level page is rendered
-  // 'home' | 'wizard'  — add more keys here as the app grows
-  const [page, setPage] = useState('home');
+  const [page, setPage]                     = useState('home');
+  const [resumeTemplate, setResumeTemplate] = useState(null);
+  const [savedBuild, setSavedBuild]         = useState(() => loadSavedBuild());
+
+  function handleContinueBuild() {
+    setResumeTemplate(savedBuild);
+    setPage('wizard');
+  }
+
+  function handleDeleteBuild() {
+    localStorage.removeItem('pc-build');
+    setSavedBuild(null);
+  }
+
+  function handleBack() {
+    setResumeTemplate(null);
+    setSavedBuild(loadSavedBuild());
+    setPage('home');
+  }
 
   return (
     <>
-      {page === 'home'   && <Home   onStart={() => setPage('wizard')} />}
-      {page === 'wizard' && <Wizard onBack={()  => setPage('home')}  />}
-
-      {/* TODO: add more pages here as they are built
-          {page === 'parts-picker' && <PartsPicker onBack={() => setPage('home')} />}
-      */}
+      {page === 'home' && (
+        <Home
+          onStart={() => setPage('wizard')}
+          savedBuild={savedBuild}
+          onContinueBuild={handleContinueBuild}
+          onDeleteBuild={handleDeleteBuild}
+        />
+      )}
+      {page === 'wizard' && (
+        <Wizard
+          onBack={handleBack}
+          resumeTemplate={resumeTemplate}
+          onBuildOwn={() => setPage('parts-picker')}
+        />
+      )}
+      {page === 'parts-picker' && (
+        <PartsPicker onBack={() => setPage('home')} />
+      )}
     </>
   );
 }

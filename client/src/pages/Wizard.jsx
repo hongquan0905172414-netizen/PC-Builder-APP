@@ -35,6 +35,7 @@
 import { useState } from 'react';
 import { getActiveQuestions, getOptions } from '../data/questions';
 import { computeScores, findTemplate }    from '../lib/scoring';
+import PCViewer3D from '../components/PCViewer3D';
 
 /* ============================================================
    SUB-COMPONENTS
@@ -154,6 +155,12 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
   const opts            = getOptions(q, answers);
   const hasAnswer       = Boolean(answers[q.id]);
   const isLast          = currentStep === total - 1;
+  const isBudget        = q.id === 'budget';
+
+  function handleOptionClick(value) {
+    onAnswer(q.id, value);
+    setTimeout(() => onNext(), 180);
+  }
 
   return (
     <div className="screen">
@@ -178,7 +185,7 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
 
       {/* Answer options */}
       <div className="quiz-options">
-        {q.id === 'budget' ? (
+        {isBudget ? (
           <BudgetSlider
             value={answers[q.id]}
             onChange={(value) => onAnswer(q.id, value)}
@@ -189,25 +196,27 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
               key={opt.value}
               label={opt.label}
               selected={answers[q.id] === opt.value}
-              onClick={() => onAnswer(q.id, opt.value)}
+              onClick={() => handleOptionClick(opt.value)}
             />
           ))
         )}
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — Back always visible; Next only for budget/slider */}
       <div className="quiz-nav">
         {currentStep > 0 && (
           <button className="btn-ghost" onClick={onBack}>← Back</button>
         )}
-        <button
-          className="btn-primary"
-          style={{ flex: 1 }}
-          disabled={!hasAnswer}
-          onClick={onNext}
-        >
-          {isLast ? 'See my build →' : 'Next →'}
-        </button>
+        {isBudget && (
+          <button
+            className="btn-primary"
+            style={{ flex: 1 }}
+            disabled={!hasAnswer}
+            onClick={onNext}
+          >
+            {isLast ? 'See my build →' : 'Next →'}
+          </button>
+        )}
       </div>
 
     </div>
@@ -235,7 +244,29 @@ function ResultsScreen({ template, onHappy, onTweak }) {
           <span className="results-price">{template.price}</span>
         </div>
 
-        <PcIllustration parts={template.parts} />
+        {/* 3D interactive PC viewer */}
+        <div style={{
+          width: '100%',
+          height: '360px',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          border: '0.5px solid var(--color-border)',
+          background: 'var(--color-surface)',
+          marginBottom: '12px',
+          position: 'relative',
+        }}>
+          <PCViewer3D />
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '12px',
+            fontSize: '11px',
+            color: 'var(--color-text-faded)',
+            pointerEvents: 'none',
+          }}>
+            Drag to rotate · Scroll to zoom · Hover parts for info
+          </div>
+        </div>
 
         {/* Parts list
             TO CHANGE a part: edit data/templates.js, find the template, edit parts[] */}
@@ -349,18 +380,11 @@ function TweakScreen({ answers, onAnswerChange, onRegenerate, onBack }) {
    MAIN WIZARD COMPONENT
    Manages all state and wires the sub-components together.
 ============================================================ */
-export default function Wizard({ onBack }) {
-  // Which screen is visible — the only place this is set
-  const [screen, setScreen] = useState('choose-path');
-
-  // User's answers: { budget: '700', goal: 'gaming', ... }
+export default function Wizard({ onBack, resumeTemplate = null, onBuildOwn }) {
+  const [screen, setScreen] = useState(resumeTemplate ? 'results' : 'choose-path');
   const [answers, setAnswers] = useState({ budget: '50000' });
-
-  // Current step index into the active question list (quiz mode)
   const [currentStep, setCurrentStep] = useState(0);
-
-  // The matched Template object from findTemplate()
-  const [matchedTemplate, setMatchedTemplate] = useState(null);
+  const [matchedTemplate, setMatchedTemplate] = useState(resumeTemplate);
 
   /* ----------------------------------------------------------
     Removes answers for questions that are no longer applicable.
@@ -410,6 +434,7 @@ export default function Wizard({ onBack }) {
     const scores   = computeScores(answers);
     const template = findTemplate(scores);
     setMatchedTemplate(template);
+    localStorage.setItem('pc-build', JSON.stringify(template));
     setScreen('results');
   }
 
@@ -466,10 +491,7 @@ export default function Wizard({ onBack }) {
             setCurrentStep(0);
             setScreen('quiz');
           }}
-          onBuildOwn={() => {
-            // TODO: navigate to the full parts picker when built
-            alert('Full parts picker coming soon!');
-          }}
+          onBuildOwn={onBuildOwn}
         />
       )}
 

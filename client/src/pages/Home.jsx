@@ -1,55 +1,76 @@
-/*
-================================================================
-  pages/Home.jsx — BuildCore landing page
-================================================================
-  Props:
-    onStart  — called when "Get Started" is clicked
-               wires into App.jsx to switch to the wizard
+import { useState, useRef, useEffect } from 'react'
+import PCViewer3D from '../components/PCViewer3D'
 
-  TO CHANGE THE HEADLINE: edit the h1/p text below.
-  TO CHANGE COLORS:       edit the CSS variables in index.css.
-  TO CHANGE THE BUTTON:   edit the <button> near the bottom.
-================================================================
-*/
+function SavedBuildCard({ savedBuild, onContinueBuild, onDeleteBuild }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef()
 
-export default function Home({ onStart }) {
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  return (
+    <div className="sbc" onClick={onContinueBuild}>
+      {/* 3D PC fills the card */}
+      <div className="sbc-viewer">
+        <PCViewer3D />
+      </div>
+
+      {/* Bottom gradient + price */}
+      <div className="sbc-gradient" />
+      <span className="sbc-price">{savedBuild.price}</span>
+
+      {/* 3-dot menu */}
+      <div className="sbc-menu-wrap" ref={menuRef} onClick={e => e.stopPropagation()}>
+        <button className="sbc-dots" onClick={() => setMenuOpen(o => !o)}>
+          ···
+        </button>
+        {menuOpen && (
+          <div className="sbc-dropdown">
+            <button className="sbc-delete-btn" onClick={() => { setMenuOpen(false); onDeleteBuild() }}>
+              Delete build
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function Home({ onStart, savedBuild, onContinueBuild, onDeleteBuild }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-      {/* NAV
-          To add a nav link: copy an <a> inside nav-links.
-          To mark the active page: add the "active" class to that link. */}
       <nav className="nav">
-        <div className="logo">
-          <span className="logo-accent">Build</span>Core
-        </div>
+        <div className="logo"><span className="logo-accent">Build</span>Core</div>
         <div className="nav-links">
           <a className="active" href="#">My Build</a>
           <a href="#">Assembly</a>
           <a href="#">Upgrade My PC</a>
         </div>
-        {/* TODO: add .nav-right here for login / user avatar */}
       </nav>
 
-      {/* HERO
-          To change layout/spacing: edit the inline styles below.
-          To change font sizes: edit the CSS variables in index.css. */}
       <main className="hero">
         <h1 className="hero-headline">Build your PC.</h1>
         <p  className="hero-subheadline">Without the fear.</p>
         <p  className="hero-description">
-          Answer a few questions.<br />
-          Get your perfect parts list.
+          Answer a few questions.<br />Get your perfect parts list.
         </p>
+        <button className="btn-cta" onClick={onStart}>Get Started →</button>
 
-        {/* CTA BUTTON
-            onStart is passed from App.jsx — it switches the page to Wizard.
-            TO CHANGE TEXT: edit the button text below. */}
-        <button className="btn-cta" onClick={onStart}>
-          Get Started →
-        </button>
+        {savedBuild && (
+          <SavedBuildCard
+            savedBuild={savedBuild}
+            onContinueBuild={onContinueBuild}
+            onDeleteBuild={onDeleteBuild}
+          />
+        )}
       </main>
 
     </div>
-  );
+  )
 }
