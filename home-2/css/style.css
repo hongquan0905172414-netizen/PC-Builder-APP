@@ -1,0 +1,93 @@
+
+@font-face {
+    font-family: 'MyIcons';
+    src: url('fonts/icomoon.ttf');
+}
+
+
+[class*="icon-"] {
+    font-family: 'MyIcons';
+    font-style: normal;
+}
+
+.icon-apple:before {
+    content: "\e902";
+}
+
+.icon-doll:before {
+    content: "\e904";
+}
+
+.icon-doll-2:before {
+    content: "\e903";
+}
+
+.icon-ring-bell:before {
+    content: "\e905";
+}
+
+.icon-three-line:before {
+    content: "\e906";
+}
+
+.icon-baby-cutlery:before {
+    content: "\e907";
+}
+
+.icon-scissors:before {
+    content: "\e908";
+}
+
+.icon-crayon:before {
+    content: "\e909";
+}
+
+.icon-teddy-bear:before {
+    content: "\e90a";
+}
+
+.icon-baby-body:before {
+    content: "\e90b";
+}
+
+.icon-mat:before {
+    content: "\e90c";
+}
+
+.icon-feeder:before {
+    content: "\e90d";
+}
+
+.icon-toys:before {
+    content: "\e90e";
+}
+
+.icon-car-toy:before {
+    content: "\e90f";
+}
+
+.icon-chalkboard:before {
+    content: "\e910";
+}
+
+.icon-blocks:before {
+    content: "\e911";
+}
+
+.icon-book:before {
+    content: "\e912";
+}
+
+.icon-kindergarden:before {
+    content: "\e913";
+}
+
+/* Icon đặc biệt (nhiều màu - cái icon close) */
+.icon-close-icon .path1:before {
+    content: "\e900";
+}
+
+.icon-close-icon .path2:before {
+    content: "\e901";
+    margin-left: -1em;
+}
