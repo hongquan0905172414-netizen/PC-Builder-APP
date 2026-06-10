@@ -32,9 +32,11 @@
 ================================================================
 */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getActiveQuestions, getOptions } from '../data/questions';
 import { computeScores, findTemplate }    from '../lib/scoring';
+import { initPrices, tickPrices, cheapestFor, fmt, RETAILERS } from '../lib/prices';
+import PC3D from '../components/PC3D';
 
 /* ============================================================
    SUB-COMPONENTS
@@ -84,38 +86,6 @@ function BudgetSlider({ value, onChange }) {
   );
 }
 
-function PcIllustration({ parts }) {
-  const mapByCategory = Object.fromEntries(parts.map((part) => [part.category, part]));
-
-  return (
-    <div className="pc-illustration-card">
-      <div className="pc-illustration-shell">
-        <div className="pc-case-shell">
-          <div className="pc-component pc-cpu">CPU</div>
-          <div className="pc-component pc-gpu">GPU</div>
-          <div className="pc-component pc-ram">RAM</div>
-          <div className="pc-component pc-storage">SSD</div>
-          <div className="pc-component pc-psu">PSU</div>
-        </div>
-      </div>
-      <div className="pc-illustration-meta">
-        <div className="pc-illustration-title">Your PC build</div>
-        <div className="pc-illustration-copy">
-          A clean assembly preview of your chosen core components.
-        </div>
-        <div className="pc-illustration-list">
-          {parts.map((part) => (
-            <div key={part.category} className="pc-illustration-item">
-              <span className="pc-illustration-label">{part.category}</span>
-              <span className="pc-illustration-value">{part.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** The "choose your path" opening screen */
 function ChoosePathScreen({ onNeedHelp, onBuildOwn }) {
   return (
@@ -147,13 +117,14 @@ function ChoosePathScreen({ onNeedHelp, onBuildOwn }) {
 }
 
 /** Step-through quiz — one question at a time */
-function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
+function QuizScreen({ answers, currentStep, onAnswer, onSelect, onNext, onBack }) {
   const activeQuestions = getActiveQuestions(answers);
   const total           = activeQuestions.length;
   const q               = activeQuestions[currentStep];
   const opts            = getOptions(q, answers);
   const hasAnswer       = Boolean(answers[q.id]);
   const isLast          = currentStep === total - 1;
+  const isBudget        = q.id === 'budget';
 
   return (
     <div className="screen">
@@ -178,7 +149,7 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
 
       {/* Answer options */}
       <div className="quiz-options">
-        {q.id === 'budget' ? (
+        {isBudget ? (
           <BudgetSlider
             value={answers[q.id]}
             onChange={(value) => onAnswer(q.id, value)}
@@ -189,25 +160,27 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
               key={opt.value}
               label={opt.label}
               selected={answers[q.id] === opt.value}
-              onClick={() => onAnswer(q.id, opt.value)}
+              onClick={() => onSelect(q.id, opt.value)}
             />
           ))
         )}
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — always show Back; only show Next for budget question */}
       <div className="quiz-nav">
         {currentStep > 0 && (
           <button className="btn-ghost" onClick={onBack}>← Back</button>
         )}
-        <button
-          className="btn-primary"
-          style={{ flex: 1 }}
-          disabled={!hasAnswer}
-          onClick={onNext}
-        >
-          {isLast ? 'See my build →' : 'Next →'}
-        </button>
+        {isBudget && (
+          <button
+            className="btn-primary"
+            style={{ flex: 1 }}
+            disabled={!hasAnswer}
+            onClick={onNext}
+          >
+            {isLast ? 'See my build →' : 'Next →'}
+          </button>
+        )}
       </div>
 
     </div>
@@ -215,8 +188,26 @@ function QuizScreen({ answers, currentStep, onAnswer, onNext, onBack }) {
 }
 
 /** Parts list output after the engine runs */
-function ResultsScreen({ template, onHappy, onTweak }) {
-  const [copied, setCopied] = useState(false);
+function ResultsScreen({ template, answers, onHappy, onTweak }) {
+  const [copied,     setCopied]     = useState(false);
+  const [prices,     setPrices]     = useState(() => initPrices(template.parts));
+  const [secsAgo,    setSecsAgo]    = useState(0);
+
+  // Simulate live price ticks every 8 seconds
+  useEffect(() => {
+    const tick    = setInterval(() => { setPrices((p) => tickPrices(p)); setSecsAgo(0); }, 8000);
+    const counter = setInterval(() => { setSecsAgo((s) => s + 1); }, 1000);
+    return () => { clearInterval(tick); clearInterval(counter); };
+  }, []);
+
+  const showRgb   = answers.rgb   && answers.rgb   !== 'none';
+  const showGlass = answers.glass === 'yes';
+
+  // Total using the cheapest retailer per part
+  const totalCheapest = template.parts.reduce((sum, part) => {
+    const p = prices[part.category];
+    return sum + (p ? Math.min(...Object.values(p)) : 0);
+  }, 0);
 
   function handleCopy() {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -229,31 +220,17 @@ function ResultsScreen({ template, onHappy, onTweak }) {
     <div className="screen screen--top">
       <div style={{ width: '100%' }}>
 
-        {/* Header: template badge + price */}
-        <div className="results-header">
+        {/* 3D PC Model */}
+        <PC3D showRgb={showRgb} showGlass={showGlass} />
+
+        {/* Header */}
+        <div className="results-header" style={{ marginTop: '14px' }}>
           <span className="template-badge">{template.id} · {template.name}</span>
-          <span className="results-price">{template.price}</span>
-        </div>
-
-        <PcIllustration parts={template.parts} />
-
-        {/* Parts list
-            TO CHANGE a part: edit data/templates.js, find the template, edit parts[] */}
-        <div className="parts-list">
-          {template.parts.map((part) => (
-            <div key={part.category} className="part-row">
-              <span className="part-category">{part.category}</span>
-              <span className="part-name">{part.name}</span>
-              {/* Replace part.url with a real affiliate link */}
-              <a className="part-price" href={part.url} target="_blank" rel="noreferrer">
-                {part.price} →
-              </a>
-            </div>
-          ))}
+          <span className="results-price">{fmt(totalCheapest)}</span>
         </div>
 
         {/* Meta chips */}
-        <div className="results-meta">
+        <div className="results-meta" style={{ marginBottom: '12px' }}>
           <div className="meta-chip">
             <span className="meta-label">Compatibility</span>
             <span className="meta-val meta-val--ok">No issues</span>
@@ -263,22 +240,75 @@ function ResultsScreen({ template, onHappy, onTweak }) {
             <span className="meta-val">{template.wattage}</span>
           </div>
           <div className="meta-chip" style={{ cursor: 'pointer' }} onClick={handleCopy}>
-            <span className="meta-label">Share link</span>
-            <span className="meta-val meta-val--info">{copied ? 'Copied!' : 'Copy URL'}</span>
+            <span className="meta-label">Share</span>
+            <span className="meta-val meta-val--info">{copied ? 'Copied!' : 'Copy link'}</span>
           </div>
         </div>
 
-        {/* Action row */}
-        <div className="results-actions">
+        {/* Live price indicator */}
+        <div className="price-live-row">
+          <span className="price-live-dot" />
+          <span className="price-live-text">Live prices · updated {secsAgo}s ago</span>
+          <span className="price-live-demo">demo</span>
+        </div>
+
+        {/* Price comparison table */}
+        <div className="price-table">
+          <div className="price-table-head">
+            <span className="pt-col-part">Part</span>
+            {RETAILERS.map((r) => (
+              <span key={r} className="pt-col-price">{r}</span>
+            ))}
+          </div>
+
+          {template.parts.map((part) => {
+            const catPrices = prices[part.category] || {};
+            const cheapest  = cheapestFor(catPrices);
+            return (
+              <div key={part.category} className="price-table-row">
+                <div className="pt-col-part">
+                  <span className="pt-category">{part.category}</span>
+                  <span className="pt-name">{part.name}</span>
+                </div>
+                {RETAILERS.map((retailer) => {
+                  const isBest = retailer === cheapest;
+                  return (
+                    <div key={retailer} className={`pt-col-price${isBest ? ' pt-best' : ''}`}>
+                      <span>{fmt(catPrices[retailer] ?? 0)}</span>
+                      {isBest && <span className="pt-best-badge">Best</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* Totals row */}
+          <div className="price-table-total">
+            <span className="pt-col-part">Total</span>
+            {RETAILERS.map((retailer) => {
+              const total = template.parts.reduce(
+                (sum, part) => sum + (prices[part.category]?.[retailer] ?? 0), 0
+              );
+              return (
+                <span key={retailer} className="pt-col-price pt-total-val">
+                  {fmt(total)}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="results-actions" style={{ marginTop: '14px' }}>
           <button className="btn-ghost" style={{ flex: 1 }} onClick={onTweak}>
             Tweak my answers
           </button>
           <button className="btn-primary" style={{ flex: 1 }} onClick={onHappy}>
-            I'm happy — show buy links →
+            Buy cheapest picks →
           </button>
         </div>
 
-        {/* Assembly guide teaser — v2.0 */}
         <div className="assembly-teaser">
           Parts ordered?{' '}
           <span style={{ color: 'var(--color-text-muted)' }}>Guided assembly mode</span>
@@ -397,6 +427,24 @@ export default function Wizard({ onBack }) {
   }
 
   /* ----------------------------------------------------------
+    Quiz: record an answer AND immediately advance (used for
+    all questions except budget, which needs an explicit Next)
+  ---------------------------------------------------------- */
+  function handleSelect(questionId, value) {
+    const updated = pruneAndUpdate({ ...answers, [questionId]: value });
+    setAnswers(updated);
+    const active = getActiveQuestions(updated);
+    if (currentStep < active.length - 1) {
+      setCurrentStep((s) => s + 1);
+    } else {
+      const scores   = computeScores(updated);
+      const template = findTemplate(scores);
+      setMatchedTemplate(template);
+      setScreen('results');
+    }
+  }
+
+  /* ----------------------------------------------------------
     Quiz: go back one step
   ---------------------------------------------------------- */
   function handleQuizBack() {
@@ -478,6 +526,7 @@ export default function Wizard({ onBack }) {
           answers={answers}
           currentStep={currentStep}
           onAnswer={handleAnswer}
+          onSelect={handleSelect}
           onNext={handleNext}
           onBack={handleQuizBack}
         />
@@ -486,6 +535,7 @@ export default function Wizard({ onBack }) {
       {screen === 'results' && matchedTemplate && (
         <ResultsScreen
           template={matchedTemplate}
+          answers={answers}
           onHappy={handleHappy}
           onTweak={() => setScreen('tweak')}
         />
