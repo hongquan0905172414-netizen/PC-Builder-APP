@@ -32,11 +32,13 @@
 ================================================================
 */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getActiveQuestions, getOptions } from '../data/questions';
 import { computeScores, findTemplate }    from '../lib/scoring';
 import { initPrices, tickPrices, cheapestFor, fmt, RETAILERS } from '../lib/prices';
+import { loadBuilds, saveBuilds } from '../lib/storage';
 import PC3D from '../components/PC3D';
+import PartPicker from './PartPicker';
 
 /* ============================================================
    SUB-COMPONENTS
@@ -376,12 +378,387 @@ function TweakScreen({ answers, onAnswerChange, onRegenerate, onBack }) {
 
 
 /* ============================================================
+   PART INTRO DATA + SCREEN
+   Shown after "Help me pick parts" — hover each icon to learn
+   what each component does before starting the quiz.
+============================================================ */
+const PC_PARTS = [
+  {
+    id: 'cpu', emoji: '⚙️', label: 'CPU', tagline: 'The Brain',
+    color: '#0A84FF', bg: 'rgba(10,132,255,0.15)',
+    desc: "Every single thing your PC does runs through here first — opening apps, loading games, rendering video. Think of it as the person in charge: nothing happens without their say-so. Faster CPU = less waiting.",
+  },
+  {
+    id: 'gpu', emoji: '🎮', label: 'GPU', tagline: 'The Artist',
+    color: '#30D158', bg: 'rgba(48,209,88,0.15)',
+    desc: "The GPU paints everything you see on screen — every frame, every shadow, every pixel. It's especially important for gaming. A stronger GPU means smoother visuals and higher frame rates.",
+  },
+  {
+    id: 'motherboard', emoji: '🔌', label: 'Motherboard', tagline: 'The City',
+    color: '#FF9F0A', bg: 'rgba(255,159,10,0.15)',
+    desc: "Every other part plugs into this. It's the city your PC lives in — the roads that let the CPU, RAM, GPU, and storage all talk to each other. You'll barely think about it, but nothing works without it.",
+  },
+  {
+    id: 'ram', emoji: '📋', label: 'RAM', tagline: 'Your Desk Space',
+    color: '#BF5AF2', bg: 'rgba(191,90,242,0.15)',
+    desc: "Imagine your desk. The bigger it is, the more things you can have spread out and working at once. RAM is your PC's desk. More RAM = more browser tabs, more apps open, less slowdown.",
+  },
+  {
+    id: 'storage', emoji: '💾', label: 'Storage', tagline: 'Your Library',
+    color: '#FF375F', bg: 'rgba(255,55,95,0.15)',
+    desc: "This is where everything lives when you're not using it — games, files, photos. A fast SSD opens things almost instantly. More storage means more space for everything you care about.",
+  },
+  {
+    id: 'case', emoji: '🖥️', label: 'Case', tagline: 'The Shell',
+    color: '#8E8E93', bg: 'rgba(99,99,102,0.2)',
+    desc: "The outer body that holds and protects everything inside. It affects airflow and how it looks on your desk. Some have glass panels to show off the components. Some are compact; some are full towers.",
+  },
+  {
+    id: 'cooling', emoji: '❄️', label: 'Cooling', tagline: 'The AC Unit',
+    color: '#5AC8FA', bg: 'rgba(90,200,250,0.15)',
+    desc: "PCs get hot when they work hard. Cooling — fans or liquid — keeps the temperature down so parts last longer and don't throttle themselves during an intense gaming session.",
+  },
+  {
+    id: 'psu', emoji: '⚡', label: 'PSU', tagline: 'The Heart',
+    color: '#FFD60A', bg: 'rgba(255,214,10,0.15)',
+    desc: "The power supply pumps electricity to every component inside. Think of it like the heart — if it's unreliable, everything suffers. A good one protects your parts; a cheap one can damage them.",
+  },
+];
+
+/** bare=true: hides the header text and button — used for the manual picker path */
+function PartIntroScreen({ onContinue, bare = false }) {
+  const [hoveredId, setHoveredId] = useState(null);
+  const part = PC_PARTS.find((p) => p.id === hoveredId) ?? null;
+
+  return (
+    <div className="part-intro">
+
+      <div className="part-intro-left">
+        {!bare && (
+          <>
+            <h1 className="part-intro-title">Your PC has 8 core parts.</h1>
+            <p className="part-intro-sub">Hover any part to learn what it does.</p>
+          </>
+        )}
+
+        <div className="part-icon-grid" style={bare ? { marginBottom: 0 } : undefined}>
+          {PC_PARTS.map((p) => (
+            <div
+              key={p.id}
+              className={`part-icon-card${hoveredId === p.id ? ' part-icon-card--active' : ''}`}
+              onMouseEnter={() => setHoveredId(p.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              <div className="part-icon-box" style={{ background: p.bg }}>
+                <span className="part-icon-emoji">{p.emoji}</span>
+              </div>
+              <span className="part-icon-label">{p.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {!bare && onContinue && (
+          <button className="btn-primary" style={{ alignSelf: 'flex-start' }} onClick={onContinue}>
+            Help me pick my parts →
+          </button>
+        )}
+      </div>
+
+      <div className={`part-intro-right${part ? ' part-intro-right--show' : ''}`}>
+        {part && (
+          <div className="part-intro-desc">
+            <div className="part-intro-desc-name" style={{ color: part.color }}>
+              {part.label}
+            </div>
+            <div className="part-intro-desc-tagline">{part.tagline}</div>
+            <p className="part-intro-desc-body">{part.desc}</p>
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}
+
+
+const BUILD_ROWS = [
+  { id: 'cpu',         label: 'CPU',          emoji: '⚙️',  watts: 65  },
+  { id: 'cpu-cooler',  label: 'CPU Cooler',   emoji: '❄️',  watts: 10  },
+  { id: 'motherboard', label: 'Motherboard',  emoji: '🔌',  watts: 5   },
+  { id: 'memory',      label: 'Memory',       emoji: '📋',  watts: 5   },
+  { id: 'storage',     label: 'Storage',      emoji: '💾',  watts: 5   },
+  { id: 'gpu',         label: 'Video Card',   emoji: '🎮',  watts: 200 },
+  { id: 'case',        label: 'Case',         emoji: '🖥️',  watts: 0   },
+  { id: 'psu',         label: 'Power Supply', emoji: '⚡',  watts: 0   },
+];
+
+function BuildOwnScreen({ buildId }) {
+  const [activeBuildId] = useState(
+    () => buildId ?? String(Date.now())
+  );
+
+  const [selected, setSelected] = useState(() => {
+    if (!buildId) return {};
+    const saved = loadBuilds().find((b) => b.id === buildId);
+    return saved?.selected ?? {};
+  });
+
+  const [pickerFor, setPickerFor] = useState(null);
+
+  // Auto-save whenever selected changes (only if at least one part picked)
+  useEffect(() => {
+    if (!Object.values(selected).some(Boolean)) return;
+    const builds = loadBuilds();
+    const build = {
+      id: activeBuildId,
+      name: 'My Build',
+      savedAt: new Date().toISOString(),
+      selected,
+      partsCount: Object.values(selected).filter(Boolean).length,
+    };
+    const idx = builds.findIndex((b) => b.id === activeBuildId);
+    if (idx >= 0) { builds[idx] = build; } else { builds.unshift(build); }
+    saveBuilds(builds);
+  }, [selected]);
+
+  const watts = BUILD_ROWS.reduce(
+    (sum, r) => selected[r.id] ? sum + r.watts : sum, 0
+  );
+  const total = Object.values(selected).reduce(
+    (sum, p) => sum + (p?.cents ?? 0), 0
+  );
+
+  function fmtPrice(cents) {
+    return cents ? '$' + (cents / 100).toLocaleString('en-US') : '—';
+  }
+
+  if (pickerFor !== null) {
+    return (
+      <PartPicker
+        partType={pickerFor}
+        onAdd={(part) => {
+          setSelected((s) => ({ ...s, [pickerFor]: part }));
+          setPickerFor(null);
+        }}
+        onClose={() => setPickerFor(null)}
+      />
+    );
+  }
+
+  return (
+    <div className="build-own">
+
+      {/* Compatibility + wattage bar */}
+      <div className="build-status">
+        <div className="build-status-left">
+          <span className="build-status-dot" />
+          <span>Compatibility: No issues found</span>
+        </div>
+        <div className="build-status-right">
+          Estimated Wattage: <strong>{watts}W</strong>
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div className="build-head">
+        <span className="bc-name">Component</span>
+        <span className="bc-sel">Selection</span>
+        <span className="bc-price">Price</span>
+      </div>
+
+      {/* Component rows */}
+      <div className="build-table">
+        {BUILD_ROWS.map((row) => {
+          const part = selected[row.id];
+          return (
+            <div key={row.id} className={`build-row${part ? ' build-row--filled' : ''}`}>
+              <div className="bc-name">
+                <span className="build-row-emoji">{row.emoji}</span>
+                <span className="build-row-label">{row.label}</span>
+              </div>
+
+              <div className="bc-sel">
+                {part ? (
+                  <div className="build-chosen">
+                    <span className="build-chosen-name">{part.name}</span>
+                    <button
+                      className="build-remove-btn"
+                      onClick={() => setSelected((s) => { const n = { ...s }; delete n[row.id]; return n; })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="build-choose-btn"
+                    onClick={() => setPickerFor(row.id)}
+                  >
+                    + Choose A {row.label}
+                  </button>
+                )}
+              </div>
+
+              <div className="bc-price">
+                {fmtPrice(part?.cents)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Total row */}
+      <div className="build-total-row">
+        <span className="build-total-label">Total</span>
+        <span className="build-total-price">{total ? fmtPrice(total) : '—'}</span>
+      </div>
+
+    </div>
+  );
+}
+
+
+/** Fork shown after "Help me pick" — manual grid vs AI chat */
+function PathForkScreen({ onManual, onAI }) {
+  return (
+    <div className="screen">
+      <h1 className="screen-title">How do you want to build?</h1>
+      <p  className="screen-subtitle">Pick the approach that feels right.</p>
+      <div className="path-cards">
+        <button className="path-card" onClick={onManual}>
+          <div className="path-card-eyebrow">I know what I want</div>
+          <div className="path-card-title">Pick parts by myself</div>
+          <div className="path-card-desc">
+            Browse the 8 core components. Hover to learn what each one does.
+          </div>
+        </button>
+        <button className="path-card path-card--highlighted" onClick={onAI}>
+          <div className="path-card-eyebrow">Not sure where to start</div>
+          <div className="path-card-title">Chat with AI Builder</div>
+          <div className="path-card-desc">
+            Tell the AI what you need. It will guide you and fill in the parts live.
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Split-screen: AI chat on the left, parts grid on the right */
+function AIBuilderScreen() {
+  const [messages, setMessages] = useState([
+    {
+      id: 1, from: 'ai',
+      text: "Hey! I'm your AI PC builder. Tell me what you mainly want to use your PC for — gaming, work, video editing, school — and I'll help you figure out the right parts.",
+    },
+  ]);
+  const [input, setInput]       = useState('');
+  const [hoveredId, setHoveredId] = useState(null);
+  const bottomRef               = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  function sendMessage() {
+    if (!input.trim()) return;
+    const userMsg = { id: Date.now(), from: 'user', text: input.trim() };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1, from: 'ai',
+          text: "Thanks for sharing that! Full AI integration is coming soon — once it's live, I'll be able to recommend specific parts based on exactly what you tell me. For now, hover any part on the right to learn what it does.",
+        },
+      ]);
+    }, 750);
+  }
+
+  const hovered = PC_PARTS.find((p) => p.id === hoveredId) ?? null;
+
+  return (
+    <div className="ai-builder">
+
+      {/* ── Left: chat ── */}
+      <div className="ai-chat">
+        <div className="ai-chat-messages">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`ai-msg ai-msg--${msg.from}`}>
+              {msg.from === 'ai' && <span className="ai-msg-label">AI Builder</span>}
+              <div className="ai-msg-bubble">{msg.text}</div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+        <div className="ai-chat-bar">
+          <input
+            className="ai-chat-input"
+            type="text"
+            placeholder="Tell me about your needs…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          />
+          <button
+            className="ai-chat-send"
+            onClick={sendMessage}
+            disabled={!input.trim()}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
+      {/* ── Right: parts grid + hover description ── */}
+      <div className="ai-parts-panel">
+        <div className="ai-parts-header">
+          <span className="ai-parts-title">Your Build</span>
+          <span className="ai-parts-hint">Hover to explore</span>
+        </div>
+
+        <div className="ai-parts-grid">
+          {PC_PARTS.map((p) => (
+            <div
+              key={p.id}
+              className={`ai-part-card${hoveredId === p.id ? ' ai-part-card--active' : ''}`}
+              onMouseEnter={() => setHoveredId(p.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              <div className="ai-part-icon" style={{ background: p.bg }}>
+                <span className="ai-part-emoji">{p.emoji}</span>
+              </div>
+              <span className="ai-part-label">{p.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className={`ai-part-desc${hovered ? ' ai-part-desc--show' : ''}`}>
+          {hovered && (
+            <>
+              <div className="ai-part-desc-name" style={{ color: hovered.color }}>
+                {hovered.label}
+              </div>
+              <div className="ai-part-desc-tagline">{hovered.tagline}</div>
+              <p className="ai-part-desc-body">{hovered.desc}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+
+/* ============================================================
    MAIN WIZARD COMPONENT
    Manages all state and wires the sub-components together.
 ============================================================ */
-export default function Wizard({ onBack }) {
-  // Which screen is visible — the only place this is set
-  const [screen, setScreen] = useState('choose-path');
+export default function Wizard({ onBack, resumeBuildId }) {
+  const [screen, setScreen] = useState(
+    resumeBuildId ? 'build-own' : 'choose-path'
+  );
 
   // User's answers: { budget: '700', goal: 'gaming', ... }
   const [answers, setAnswers] = useState({ budget: '50000' });
@@ -512,13 +889,33 @@ export default function Wizard({ onBack }) {
           onNeedHelp={() => {
             setAnswers({});
             setCurrentStep(0);
-            setScreen('quiz');
+            setScreen('ai-builder');
           }}
-          onBuildOwn={() => {
-            // TODO: navigate to the full parts picker when built
-            alert('Full parts picker coming soon!');
-          }}
+          onBuildOwn={() => setScreen('build-own')}
         />
+      )}
+
+      {screen === 'build-own' && (
+        <BuildOwnScreen buildId={resumeBuildId ?? undefined} />
+      )}
+
+      {screen === 'path-fork' && (
+        <PathForkScreen
+          onManual={() => setScreen('parts-manual')}
+          onAI={() => setScreen('ai-builder')}
+        />
+      )}
+
+      {screen === 'parts-manual' && (
+        <PartIntroScreen bare />
+      )}
+
+      {screen === 'parts-intro' && (
+        <PartIntroScreen onContinue={() => setScreen('quiz')} />
+      )}
+
+      {screen === 'ai-builder' && (
+        <AIBuilderScreen />
       )}
 
       {screen === 'quiz' && (

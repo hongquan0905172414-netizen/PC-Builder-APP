@@ -27,14 +27,18 @@ import Home   from './pages/Home';
 import Wizard from './pages/Wizard';
 
 export default function App() {
-  // Controls which top-level page is rendered
-  // 'home' | 'wizard'  — add more keys here as the app grows
-  const [page, setPage] = useState('home');
+  const [page, setPage]               = useState('home');
+  const [resumeBuildId, setResumeBuildId] = useState(null);
+
+  function handleStart(buildId = null) {
+    setResumeBuildId(buildId);
+    setPage('wizard');
+  }
 
   return (
     <>
-      {page === 'home'   && <Home   onStart={() => setPage('wizard')} />}
-      {page === 'wizard' && <Wizard onBack={()  => setPage('home')}  />}
+      {page === 'home'   && <Home   onStart={handleStart} />}
+      {page === 'wizard' && <Wizard onBack={() => setPage('home')} resumeBuildId={resumeBuildId} />}
 
       {/* TODO: add more pages here as they are built
           {page === 'parts-picker' && <PartsPicker onBack={() => setPage('home')} />}
