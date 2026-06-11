@@ -12,7 +12,26 @@
 ================================================================
 */
 
+import { useState, useEffect } from 'react';
+import { loadBuilds, deleteBuild } from '../lib/storage';
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function Home({ onStart }) {
+  const [builds, setBuilds] = useState([]);
+
+  useEffect(() => {
+    setBuilds(loadBuilds());
+  }, []);
+
+  function handleDelete(id, e) {
+    e.stopPropagation();
+    deleteBuild(id);
+    setBuilds((prev) => prev.filter((b) => b.id !== id));
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
@@ -45,9 +64,43 @@ export default function Home({ onStart }) {
         {/* CTA BUTTON
             onStart is passed from App.jsx — it switches the page to Wizard.
             TO CHANGE TEXT: edit the button text below. */}
-        <button className="btn-cta" onClick={onStart}>
+        <button className="btn-cta" onClick={() => onStart()}>
           Get Started →
         </button>
+
+        {builds.length > 0 && (
+          <div className="saved-builds">
+            <p className="saved-builds-label">Your saved builds</p>
+            <div className="saved-builds-list">
+              {builds.map((build) => (
+                <div
+                  key={build.id}
+                  className="saved-build-card"
+                  onClick={() => onStart(build.id)}
+                >
+                  <button
+                    className="saved-build-delete"
+                    onClick={(e) => handleDelete(build.id, e)}
+                    title="Delete"
+                  >
+                    ×
+                  </button>
+                  <div className="saved-build-name">{build.name}</div>
+                  <div className="saved-build-meta">
+                    {build.partsCount} of 8 parts · {fmtDate(build.savedAt)}
+                  </div>
+                  <div className="saved-build-track">
+                    <div
+                      className="saved-build-fill"
+                      style={{ width: `${(build.partsCount / 8) * 100}%` }}
+                    />
+                  </div>
+                  <span className="saved-build-resume">Resume →</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
     </div>
