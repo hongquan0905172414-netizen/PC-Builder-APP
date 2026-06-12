@@ -37,6 +37,7 @@ import { getActiveQuestions, getOptions } from '../data/questions';
 import { computeScores, findTemplate }    from '../lib/scoring';
 import { initPrices, tickPrices, cheapestFor, fmt, RETAILERS } from '../lib/prices';
 import { loadBuilds, saveBuilds } from '../lib/storage';
+import { PARTS } from '../data/partsDatabase';
 import PC3D from '../components/PC3D';
 import PartPicker from './PartPicker';
 
@@ -643,36 +644,186 @@ function PathForkScreen({ onManual, onAI }) {
   );
 }
 
+/** Rich card shown in the chat when Claude recommends a part */
+function PartCard({ rec }) {
+  const db       = PARTS[rec.id] ?? null;
+  const emoji    = db?.emoji    ?? '💻';
+  const gradient = db?.gradient ?? 'linear-gradient(135deg, #1a1a2e, #0d0d1e)';
+  const specs    = db?.specs    ?? rec.specs    ?? [];
+  const pros     = db?.pros     ?? rec.pros     ?? [];
+  const cons     = db?.cons     ?? rec.cons     ?? [];
+
+  return (
+    <div className="part-card">
+      <div className="part-card-top">
+        <div className="part-card-icon" style={{ background: gradient }}>{emoji}</div>
+        <div className="part-card-info">
+          <div className="part-card-name">{rec.name}</div>
+          <div className="part-card-meta">
+            <span className="part-card-category">{rec.category}</span>
+            {rec.badge && <span className="part-card-badge">{rec.badge}</span>}
+          </div>
+        </div>
+        <div className="part-card-price">{rec.price}</div>
+      </div>
+      <div className="part-card-body">
+        {specs.length > 0 && (
+          <div className="part-card-specs">
+            {specs.map((s, i) => <span key={i} className="part-card-spec">{s}</span>)}
+          </div>
+        )}
+        {(pros.length > 0 || cons.length > 0) && (
+          <div className="part-card-pros-cons">
+            <div className="part-card-pros">
+              {pros.map((p, i) => <div key={i} className="part-card-pro">✓ {p}</div>)}
+            </div>
+            <div className="part-card-cons">
+              {cons.map((c, i) => <div key={i} className="part-card-con">✗ {c}</div>)}
+            </div>
+          </div>
+        )}
+        {rec.note && <div className="part-card-note">💬 {rec.note}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** Assembly tutorial screen — generates a personalised build guide via AI */
+function AssemblyScreen({ answers, onBack }) {
+  const [tutorial, setTutorial] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+  const [openIdx, setOpenIdx]   = useState(0);
+
+  useEffect(() => {
+    fetch('/api/tutorial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ build: answers }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setTutorial(data);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="assembly-loading">
+        <div className="assembly-loading-spinner" />
+        <p>Generating your personalised build tutorial…</p>
+        <p style={{ fontSize: 12, color: '#555', marginTop: 4 }}>This takes about 15–25 seconds</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="assembly-loading">
+        <p style={{ color: '#ef4444', marginBottom: 16 }}>⚠️ {error}</p>
+        <button className="ai-chat-send" onClick={onBack}>← Back to Chat</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="assembly-screen">
+      <button className="assembly-back" onClick={onBack}>← Back to AI Chat</button>
+      <h1 className="assembly-title">{tutorial.title}</h1>
+      <p className="assembly-intro">{tutorial.intro}</p>
+
+      {tutorial.tools?.length > 0 && (
+        <div className="assembly-tools">
+          <h3>🔧 Tools Needed</h3>
+          <ul>{tutorial.tools.map((t, i) => <li key={i}>{t}</li>)}</ul>
+        </div>
+      )}
+
+      <div className="assembly-sections">
+        {tutorial.sections?.map((section, i) => (
+          <div key={i} className="assembly-section">
+            <button
+              className="assembly-section-header"
+              onClick={() => setOpenIdx(openIdx === i ? -1 : i)}
+            >
+              <span>{section.emoji} {section.title}</span>
+              <span className="assembly-section-chevron">{openIdx === i ? '▲' : '▼'}</span>
+            </button>
+            {openIdx === i && (
+              <div className="assembly-steps">
+                {section.steps?.map((step, j) => (
+                  <div key={j} className="assembly-step">
+                    <div className="assembly-step-num">{j + 1}</div>
+                    <div className="assembly-step-content">
+                      <div className="assembly-step-title">{step.title}</div>
+                      <p className="assembly-step-detail">{step.detail}</p>
+                      {step.warning && <div className="assembly-warning">⚠️ {step.warning}</div>}
+                      {step.tip     && <div className="assembly-tip">💡 {step.tip}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Split-screen: AI chat on the left, parts grid on the right */
-function AIBuilderScreen() {
+function AIBuilderScreen({ answers = {}, onStartTutorial }) {
   const [messages, setMessages] = useState([
     {
       id: 1, from: 'ai',
       text: "Hey! I'm your AI PC builder. Tell me what you mainly want to use your PC for — gaming, work, video editing, school — and I'll help you figure out the right parts.",
     },
   ]);
-  const [input, setInput]       = useState('');
+  const [input, setInput]         = useState('');
+  const [loading, setLoading]     = useState(false);
   const [hoveredId, setHoveredId] = useState(null);
-  const bottomRef               = useRef(null);
+  const bottomRef                 = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  function sendMessage() {
-    if (!input.trim()) return;
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
     const userMsg = { id: Date.now(), from: 'user', text: input.trim() };
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput('');
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1, from: 'ai',
-          text: "Thanks for sharing that! Full AI integration is coming soon — once it's live, I'll be able to recommend specific parts based on exactly what you tell me. For now, hover any part on the right to learn what it does.",
-        },
-      ]);
-    }, 750);
+    setLoading(true);
+
+    try {
+      // Skip the opening AI greeting (index 0) — Anthropic messages must start with role "user"
+      const apiMessages = updatedMessages.slice(1).map((msg) => ({
+        role: msg.from === 'user' ? 'user' : 'assistant',
+        content: msg.text,
+      }));
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages, build: answers }),
+      });
+
+      const data = await res.json();
+      const reply           = data.reply           ?? data.error ?? 'Something went wrong. Please try again.';
+      const recommendations = data.recommendations ?? [];
+      setMessages((prev) => [...prev, { id: Date.now() + 1, from: 'ai', text: reply, recommendations }]);
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now() + 1, from: 'ai',
+        text: 'Could not reach the server. Make sure the backend is running.',
+      }]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const hovered = PC_PARTS.find((p) => p.id === hoveredId) ?? null;
@@ -687,6 +838,11 @@ function AIBuilderScreen() {
             <div key={msg.id} className={`ai-msg ai-msg--${msg.from}`}>
               {msg.from === 'ai' && <span className="ai-msg-label">AI Builder</span>}
               <div className="ai-msg-bubble">{msg.text}</div>
+              {msg.recommendations?.length > 0 && (
+                <div className="ai-recommendations">
+                  {msg.recommendations.map((rec, i) => <PartCard key={i} rec={rec} />)}
+                </div>
+              )}
             </div>
           ))}
           <div ref={bottomRef} />
@@ -695,7 +851,7 @@ function AIBuilderScreen() {
           <input
             className="ai-chat-input"
             type="text"
-            placeholder="Tell me about your needs…"
+            placeholder="Ask anything — best GPU for $1000, AMD vs Intel, what PSU do I need…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
@@ -703,9 +859,14 @@ function AIBuilderScreen() {
           <button
             className="ai-chat-send"
             onClick={sendMessage}
-            disabled={!input.trim()}
+            disabled={!input.trim() || loading}
           >
-            Send
+            {loading ? '…' : 'Send'}
+          </button>
+        </div>
+        <div className="ai-tutorial-btn-row">
+          <button className="ai-tutorial-btn" onClick={onStartTutorial}>
+            📋 Generate My Build Tutorial
           </button>
         </div>
       </div>
@@ -915,7 +1076,17 @@ export default function Wizard({ onBack, resumeBuildId }) {
       )}
 
       {screen === 'ai-builder' && (
-        <AIBuilderScreen />
+        <AIBuilderScreen
+          answers={answers}
+          onStartTutorial={() => setScreen('assembly')}
+        />
+      )}
+
+      {screen === 'assembly' && (
+        <AssemblyScreen
+          answers={answers}
+          onBack={() => setScreen('ai-builder')}
+        />
       )}
 
       {screen === 'quiz' && (
