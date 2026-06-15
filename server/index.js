@@ -30,22 +30,34 @@ function buildContext(build) {
 }
 
 function parseClaudeJson(rawText) {
+  // Try direct parse first
   try {
-    // Strip markdown code fences if present
     const cleaned = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
+  } catch {}
+  // Extract the first {...} block from the text
+  try {
+    const start = rawText.indexOf('{');
+    const end = rawText.lastIndexOf('}');
+    if (start !== -1 && end !== -1) {
+      const parsed = JSON.parse(rawText.slice(start, end + 1));
+      // Strip any embedded JSON code blocks Claude snuck into the message field
+      if (parsed.message) {
+        parsed.message = parsed.message.replace(/```json[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').trim();
+      }
+      return parsed;
+    }
+  } catch {}
+  return null;
 }
 
 /* ── POST /api/chat ─────────────────────────────────────────── */
 
-const CHAT_SYSTEM = `You are AI Builder, an expert PC building consultant with 15+ years of hands-on experience building, benchmarking, and recommending PCs. You give specific, opinionated advice backed by clear reasoning.
+const CHAT_SYSTEM = `You are AI Builder, an expert PC building consultant. Give specific, opinionated advice.
 
-ALWAYS respond with raw JSON in this exact shape (no markdown code blocks, no extra text):
+CRITICAL: Your ENTIRE response must be ONLY this JSON object — no text before it, no text after it, no markdown, no code fences:
 {
-  "message": "Your conversational response. Be direct, specific, and helpful. Max 3 short paragraphs.",
+  "message": "2-3 short sentences max. Direct and specific.",
   "recommendations": []
 }
 
@@ -89,9 +101,8 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const response = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
-      thinking: { type: 'adaptive' },
       system,
       messages,
     });

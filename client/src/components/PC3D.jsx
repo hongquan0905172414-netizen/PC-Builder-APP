@@ -2,17 +2,38 @@ import { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 
-function PCModel({ showRgb, showGlass }) {
-  const groupRef  = useRef()
-  const ramRefs   = useRef([])
-  const gpuRgbRef = useRef()
+function PCModel({ showRgb, showGlass, highlighted }) {
+  const groupRef    = useRef()
+  const ramRefs     = useRef([])
+  const gpuRgbRef   = useRef()
+
+  // Refs for each highlightable part
+  const cpuRef   = useRef()
+  const gpuRef   = useRef()
+  const moboRef  = useRef()
+  const ssdRef   = useRef()
+  const psuRef   = useRef()
+  const caseRef  = useRef()
+
+  const HIGHLIGHT_MAP = {
+    cpu:         [cpuRef],
+    cooling:     [cpuRef],
+    gpu:         [gpuRef],
+    motherboard: [moboRef],
+    storage:     [ssdRef],
+    psu:         [psuRef],
+    case:        [caseRef],
+    ram:         ramRefs.current,
+  }
 
   useFrame(({ clock }) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.005
     }
-    if (showRgb) {
-      const t = clock.elapsedTime
+
+    const t = clock.elapsedTime
+
+    if (showRgb && !highlighted) {
       const r = Math.sin(t * 0.8) * 0.5 + 0.5
       const g = Math.sin(t * 0.8 + 2.1) * 0.5 + 0.5
       const b = Math.sin(t * 0.8 + 4.2) * 0.5 + 0.5
@@ -28,13 +49,33 @@ function PCModel({ showRgb, showGlass }) {
         gpuRgbRef.current.material.emissive.setRGB(r * 0.6, g * 0.6, b * 0.6)
       }
     }
+
+    // Highlight: pulse the selected slot in bright cyan
+    if (highlighted) {
+      const pulse = Math.sin(t * 5) * 0.4 + 0.8
+      const allRefs = [cpuRef, gpuRef, moboRef, ssdRef, psuRef, caseRef, ...ramRefs.current.map(r => ({ current: r }))]
+      allRefs.forEach(({ current: mesh }) => {
+        if (mesh?.material) {
+          mesh.material.emissiveIntensity = 0
+        }
+      })
+      const targets = highlighted === 'ram'
+        ? ramRefs.current.map(r => ({ current: r }))
+        : (HIGHLIGHT_MAP[highlighted] ?? [])
+      targets.forEach(({ current: mesh }) => {
+        if (mesh?.material) {
+          mesh.material.emissive.setRGB(0.1, 0.6, 1)
+          mesh.material.emissiveIntensity = pulse * 3
+        }
+      })
+    }
   })
 
   return (
     <group ref={groupRef} rotation={[0.08, 0.45, 0]}>
 
       {/* ── Case body ── */}
-      <mesh>
+      <mesh ref={caseRef}>
         <boxGeometry args={[1.1, 2.3, 0.75]} />
         <meshStandardMaterial color="#111" metalness={0.4} roughness={0.7} />
       </mesh>
@@ -63,22 +104,16 @@ function PCModel({ showRgb, showGlass }) {
         </mesh>
       ))}
 
-      {/* ── Glass side panel (left face) ── */}
+      {/* ── Glass side panel ── */}
       {showGlass && (
         <mesh position={[-0.558, 0, 0]}>
           <boxGeometry args={[0.008, 2.22, 0.73]} />
-          <meshStandardMaterial
-            color="#99bbff"
-            transparent
-            opacity={0.2}
-            metalness={0.9}
-            roughness={0.05}
-          />
+          <meshStandardMaterial color="#99bbff" transparent opacity={0.2} metalness={0.9} roughness={0.05} />
         </mesh>
       )}
 
       {/* ── Motherboard ── */}
-      <mesh position={[0.52, 0.1, 0]}>
+      <mesh ref={moboRef} position={[0.52, 0.1, 0]}>
         <boxGeometry args={[0.01, 1.85, 0.66]} />
         <meshStandardMaterial color="#06200e" metalness={0.1} roughness={0.8} />
       </mesh>
@@ -89,7 +124,7 @@ function PCModel({ showRgb, showGlass }) {
       </mesh>
 
       {/* ── CPU cooler tower ── */}
-      <mesh position={[0.3, 0.55, 0.1]}>
+      <mesh ref={cpuRef} position={[0.3, 0.55, 0.1]}>
         <boxGeometry args={[0.22, 0.5, 0.3]} />
         <meshStandardMaterial color="#555" metalness={0.6} roughness={0.4} />
       </mesh>
@@ -100,7 +135,7 @@ function PCModel({ showRgb, showGlass }) {
       </mesh>
 
       {/* ── GPU ── */}
-      <mesh position={[0.2, -0.22, 0.03]}>
+      <mesh ref={gpuRef} position={[0.2, -0.22, 0.03]}>
         <boxGeometry args={[0.62, 0.2, 0.62]} />
         <meshStandardMaterial color="#161630" metalness={0.5} roughness={0.5} />
       </mesh>
@@ -109,7 +144,7 @@ function PCModel({ showRgb, showGlass }) {
         <boxGeometry args={[0.6, 0.04, 0.6]} />
         <meshStandardMaterial color="#1e1e3a" metalness={0.4} roughness={0.6} />
       </mesh>
-      {/* GPU fan rings (bottom face) */}
+      {/* GPU fan rings */}
       {[0.06, 0.32].map((x, i) => (
         <mesh key={i} position={[x, -0.325, 0.03]}>
           <cylinderGeometry args={[0.072, 0.072, 0.01, 14]} />
@@ -141,13 +176,13 @@ function PCModel({ showRgb, showGlass }) {
       ))}
 
       {/* ── SSD ── */}
-      <mesh position={[0.35, -0.08, -0.2]}>
+      <mesh ref={ssdRef} position={[0.35, -0.08, -0.2]}>
         <boxGeometry args={[0.05, 0.01, 0.28]} />
         <meshStandardMaterial color="#1a1a1a" metalness={0.6} />
       </mesh>
 
       {/* ── PSU ── */}
-      <mesh position={[0.1, -0.92, 0]}>
+      <mesh ref={psuRef} position={[0.1, -0.92, 0]}>
         <boxGeometry args={[0.85, 0.3, 0.68]} />
         <meshStandardMaterial color="#1c1c1c" metalness={0.5} roughness={0.5} />
       </mesh>
@@ -169,18 +204,19 @@ function PCModel({ showRgb, showGlass }) {
   )
 }
 
-export default function PC3D({ showRgb = false, showGlass = false }) {
+export default function PC3D({ showRgb = false, showGlass = false, highlighted = null, height = '300px' }) {
   return (
     <Canvas
       camera={{ position: [0, 0.4, 4.5], fov: 38 }}
-      style={{ height: '300px', borderRadius: '12px', background: '#07070f' }}
+      style={{ height, borderRadius: '12px', background: '#07070f' }}
     >
       <ambientLight intensity={0.3} />
       <directionalLight position={[4, 6, 4]} intensity={1.2} />
       <directionalLight position={[-3, 2, -2]} intensity={0.35} color="#4488ff" />
       <pointLight position={[-2, 3, 3]} intensity={0.5} color="#3b9eff" />
       {showRgb && <pointLight position={[0, 0, 2]} intensity={0.6} color="#ff44aa" />}
-      <PCModel showRgb={showRgb} showGlass={showGlass} />
+      {highlighted && <pointLight position={[0, 0, 3]} intensity={1.2} color="#19aaff" />}
+      <PCModel showRgb={showRgb} showGlass={showGlass} highlighted={highlighted} />
       <OrbitControls
         enableZoom={false}
         enablePan={false}

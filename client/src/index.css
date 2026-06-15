@@ -1038,6 +1038,10 @@ body {
   flex-direction: column;
   padding:        24px 20px;
   overflow-y:     auto;
+  position:       sticky;
+  top:            0;
+  height:         calc(100vh - 49px);
+  align-self:     flex-start;
 }
 
 .ai-parts-header {
@@ -1140,6 +1144,261 @@ body {
   color:       var(--color-text-dimmed);
 }
 
+
+/* 3D viewer in AI builder right panel */
+.ai-3d-viewer {
+  position:      relative;
+  width:         100%;
+  border-radius: var(--radius-md);
+  overflow:      hidden;
+  margin-bottom: 16px;
+  border:        0.5px solid var(--color-border);
+}
+
+.ai-3d-placeholder {
+  position:   absolute;
+  bottom:     12px;
+  left:       0;
+  right:      0;
+  text-align: center;
+  font-size:  var(--font-size-xs);
+  color:      var(--color-text-muted);
+  padding:    0 16px;
+  pointer-events: none;
+}
+
+/* Label overlay on the 3D viewer when a part is highlighted */
+.ai-3d-label {
+  position:   absolute;
+  top:        10px;
+  left:       50%;
+  transform:  translateX(-50%);
+  background: rgba(25,170,255,0.15);
+  border:     0.5px solid rgba(25,170,255,0.4);
+  border-radius: 20px;
+  padding:    3px 12px;
+  font-size:  10px;
+  font-weight: 600;
+  color:      #19aaff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Part card — selected state (clicked) */
+.ai-part-card--selected {
+  border-color: #19aaff !important;
+  box-shadow:   0 0 12px rgba(25,170,255,0.35);
+  cursor:       pointer;
+}
+
+.ai-part-card {
+  cursor: pointer;
+}
+
+/* Filled part card (when AI has recommended a part for this slot) */
+.ai-part-card--filled {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.ai-part-name-filled {
+  font-size:     9px;
+  font-weight:   600;
+  color:         var(--color-text-primary);
+  text-align:    center;
+  line-height:   1.3;
+  word-break:    break-word;
+  max-width:     100%;
+}
+
+.ai-part-price-filled {
+  font-size:   10px;
+  font-weight: 700;
+  color:       var(--color-accent);
+}
+
+/* Build stats panel */
+.ai-build-stats {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  padding:        16px;
+  background:     var(--color-surface);
+  border:         0.5px solid var(--color-border);
+  border-radius:  var(--radius-md);
+}
+
+.ai-stat-row {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+}
+
+.ai-stat-label {
+  font-size:  var(--font-size-xs);
+  color:      var(--color-text-muted);
+}
+
+.ai-stat-value {
+  font-size:   var(--font-size-sm);
+  font-weight: 600;
+  color:       var(--color-text-primary);
+}
+
+.ai-stat-value--highlight {
+  color: var(--color-accent);
+}
+
+/* ── Substitutes panel ── */
+.ai-subs-panel {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  padding:        14px;
+  background:     var(--color-surface);
+  border:         0.5px solid var(--color-border);
+  border-radius:  var(--radius-md);
+}
+
+.ai-subs-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+}
+
+.ai-subs-title {
+  font-size:      11px;
+  font-weight:    700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ai-subs-close {
+  background:  none;
+  border:      none;
+  color:       var(--color-text-muted);
+  font-size:   14px;
+  cursor:      pointer;
+  line-height: 1;
+  padding:     2px 4px;
+}
+.ai-subs-close:hover { color: var(--color-text-primary); }
+
+.ai-subs-current {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  padding:        8px 10px;
+  background:     rgba(255,255,255,0.04);
+  border-radius:  6px;
+  flex-wrap:      wrap;
+}
+
+.ai-subs-current-label {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color:          var(--color-text-muted);
+}
+
+.ai-subs-current-name {
+  flex:        1;
+  font-size:   var(--font-size-xs);
+  font-weight: 600;
+  color:       var(--color-text-primary);
+}
+
+.ai-subs-current-price {
+  font-size:   var(--font-size-xs);
+  font-weight: 700;
+  color:       var(--color-accent);
+}
+
+.ai-subs-section-label {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color:          var(--color-text-muted);
+  margin:         0;
+}
+
+.ai-sub-card {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  padding:        10px;
+  background:     rgba(255,255,255,0.03);
+  border:         0.5px solid var(--color-border);
+  border-radius:  8px;
+}
+
+.ai-sub-card-top {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     baseline;
+  gap:             6px;
+}
+
+.ai-sub-name {
+  font-size:   var(--font-size-xs);
+  font-weight: 600;
+  color:       var(--color-text-primary);
+  flex:        1;
+}
+
+.ai-sub-price {
+  font-size:   var(--font-size-xs);
+  font-weight: 700;
+  color:       var(--color-accent);
+  white-space: nowrap;
+}
+
+.ai-sub-tradeoff {
+  font-size:   var(--font-size-xs);
+  color:       var(--color-text-dimmed);
+  line-height: 1.5;
+  margin:      0;
+}
+
+.ai-sub-switch-btn {
+  padding:       6px 0;
+  background:    transparent;
+  border:        0.5px solid var(--color-accent);
+  border-radius: 6px;
+  color:         var(--color-accent);
+  font-size:     var(--font-size-xs);
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s ease;
+}
+.ai-sub-switch-btn:hover { background: rgba(10,132,255,0.1); }
+
+.ai-subs-none {
+  font-size:  var(--font-size-xs);
+  color:      var(--color-text-muted);
+  line-height: 1.5;
+  margin:     0;
+}
+
+/* "Add to Build" button on part cards in chat */
+.part-card-add-btn {
+  margin-top:    8px;
+  width:         100%;
+  padding:       7px 0;
+  background:    transparent;
+  border:        0.5px solid var(--color-accent);
+  border-radius: 6px;
+  color:         var(--color-accent);
+  font-size:     var(--font-size-xs);
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s ease;
+}
+.part-card-add-btn:hover {
+  background: rgba(10,132,255,0.1);
+}
 
 /* ============================================================
    13. BUILD YOUR OWN SCREEN  (PCPartPicker-style picker)
@@ -1816,9 +2075,276 @@ body {
 
 
 /* ============================================================
-   15. ASSEMBLY / TUTORIAL SCREEN
+   15. LEGO-STYLE ASSEMBLY GUIDE
 ============================================================ */
-.assembly-screen {
+
+/* Outer shell — full viewport minus nav */
+.lego-assembly {
+  display:        flex;
+  flex-direction: column;
+  height:         calc(100vh - 49px);
+  overflow:       hidden;
+}
+
+/* Top progress bar row */
+.lego-progress {
+  display:         flex;
+  align-items:     center;
+  gap:             16px;
+  padding:         12px 24px;
+  border-bottom:   0.5px solid var(--color-border);
+  flex-shrink:     0;
+}
+
+.lego-back-btn {
+  background:  none;
+  border:      none;
+  color:       var(--color-text-muted);
+  font-size:   13px;
+  font-family: var(--font-family);
+  cursor:      pointer;
+  white-space: nowrap;
+  transition:  color 0.15s;
+}
+.lego-back-btn:hover { color: var(--color-text-primary); }
+
+.lego-progress-track {
+  flex:          1;
+  height:        4px;
+  background:    var(--color-border);
+  border-radius: 2px;
+  overflow:      hidden;
+}
+
+.lego-progress-fill {
+  height:        100%;
+  background:    var(--color-accent);
+  border-radius: 2px;
+  transition:    width 0.4s ease;
+}
+
+.lego-step-count {
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Two-column body */
+.lego-body {
+  display:  flex;
+  flex:     1;
+  overflow: hidden;
+}
+
+/* Left: instructions */
+.lego-left {
+  flex:       1;
+  padding:    32px 36px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.lego-step-emoji {
+  font-size:     40px;
+  line-height:   1;
+  margin-bottom: 14px;
+}
+
+.lego-step-title {
+  font-size:     26px;
+  font-weight:   700;
+  margin-bottom: 4px;
+  color:         var(--color-text-primary);
+}
+
+.lego-step-subtitle {
+  font-size:     14px;
+  color:         var(--color-text-muted);
+  margin-bottom: 28px;
+  line-height:   1.5;
+}
+
+.lego-section-label {
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:          var(--color-text-muted);
+  margin-bottom:  10px;
+}
+
+/* Component tray */
+.lego-component-tray {
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           10px;
+  margin-bottom: 28px;
+}
+
+.lego-component-card {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            5px;
+  padding:        14px 12px;
+  background:     var(--color-surface);
+  border:         0.5px solid var(--color-border);
+  border-radius:  var(--radius-md);
+  min-width:      90px;
+  max-width:      120px;
+  text-align:     center;
+}
+
+.lego-component-emoji {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.lego-component-name {
+  font-size:   11px;
+  font-weight: 600;
+  color:       var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.lego-component-note {
+  font-size:  10px;
+  color:      var(--color-text-muted);
+  line-height: 1.3;
+}
+
+/* Numbered steps */
+.lego-steps-list {
+  list-style: none;
+  display:    flex;
+  flex-direction: column;
+  gap:        12px;
+  margin-bottom: 24px;
+  padding:    0;
+}
+
+.lego-step-item {
+  display:     flex;
+  align-items: flex-start;
+  gap:         12px;
+  font-size:   14px;
+  line-height: 1.55;
+  color:       var(--color-text-primary);
+}
+
+.lego-step-num {
+  width:           26px;
+  height:          26px;
+  border-radius:   50%;
+  background:      var(--color-accent);
+  color:           #fff;
+  font-size:       11px;
+  font-weight:     700;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-shrink:     0;
+  margin-top:      2px;
+}
+
+.lego-warning {
+  padding:       10px 14px;
+  background:    rgba(239,68,68,0.08);
+  border:        0.5px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-sm);
+  font-size:     13px;
+  color:         #f87171;
+  margin-bottom: 10px;
+  line-height:   1.5;
+}
+
+.lego-tip {
+  padding:       10px 14px;
+  background:    rgba(59,158,255,0.07);
+  border:        0.5px solid rgba(59,158,255,0.18);
+  border-radius: var(--radius-sm);
+  font-size:     13px;
+  color:         var(--color-accent);
+  line-height:   1.5;
+}
+
+/* Right: 3D viewer */
+.lego-right {
+  width:          420px;
+  flex-shrink:    0;
+  border-left:    0.5px solid var(--color-border);
+  display:        flex;
+  flex-direction: column;
+  padding:        24px;
+  gap:            12px;
+}
+
+.lego-3d-label {
+  text-align:  center;
+  font-size:   11px;
+  color:       #19aaff;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Footer nav */
+.lego-footer {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         14px 24px;
+  border-top:      0.5px solid var(--color-border);
+  flex-shrink:     0;
+}
+
+.lego-nav-btn {
+  padding:       10px 28px;
+  border-radius: 8px;
+  font-size:     14px;
+  font-weight:   600;
+  cursor:        pointer;
+  font-family:   var(--font-family);
+  transition:    opacity 0.15s, background 0.15s;
+}
+
+.lego-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+.lego-nav-btn--back {
+  background: var(--color-surface);
+  border:     0.5px solid var(--color-border);
+  color:      var(--color-text-primary);
+}
+.lego-nav-btn--back:not(:disabled):hover { background: var(--color-surface-2); }
+
+.lego-nav-btn--next {
+  background: var(--color-accent);
+  border:     none;
+  color:      #fff;
+}
+.lego-nav-btn--next:not(:disabled):hover { background: var(--color-accent-hover); }
+
+/* Step dots */
+.lego-dots {
+  display: flex;
+  gap:     6px;
+}
+
+.lego-dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  border:        none;
+  background:    var(--color-border);
+  cursor:        pointer;
+  padding:       0;
+  transition:    background 0.2s, transform 0.2s;
+}
+.lego-dot--done   { background: rgba(10,132,255,0.4); }
+.lego-dot--active { background: var(--color-accent); transform: scale(1.4); }
+
+/* Keep old .assembly-screen {
   flex:       1;
   overflow-y: auto;
   padding:    32px 24px 64px;
