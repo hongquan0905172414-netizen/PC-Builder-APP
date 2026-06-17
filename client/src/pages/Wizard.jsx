@@ -37,7 +37,6 @@ import { getActiveQuestions, getOptions } from '../data/questions';
 import { computeScores, findTemplate }    from '../lib/scoring';
 import { initPrices, tickPrices, cheapestFor, fmt, RETAILERS } from '../lib/prices';
 import { loadBuilds, saveBuilds } from '../lib/storage';
-import { PARTS } from '../data/partsDatabase';
 import PC3D from '../components/PC3D';
 import PartPicker from './PartPicker';
 
@@ -646,12 +645,11 @@ function PathForkScreen({ onManual, onAI }) {
 
 /** Rich card shown in the chat when Claude recommends a part */
 function PartCard({ rec, onAdd }) {
-  const db       = PARTS[rec.id] ?? null;
-  const emoji    = db?.emoji    ?? '💻';
-  const gradient = db?.gradient ?? 'linear-gradient(135deg, #1a1a2e, #0d0d1e)';
-  const specs    = db?.specs    ?? rec.specs    ?? [];
-  const pros     = db?.pros     ?? rec.pros     ?? [];
-  const cons     = db?.cons     ?? rec.cons     ?? [];
+  const emoji    = rec.emoji    ?? '💻';
+  const gradient = rec.gradient ?? 'linear-gradient(135deg, #1a1a2e, #0d0d1e)';
+  const specs    = rec.specs    ?? [];
+  const pros     = rec.pros     ?? [];
+  const cons     = rec.cons     ?? [];
 
   return (
     <div className="part-card">
@@ -1288,10 +1286,9 @@ function AIBuilderScreen({ answers = {}, onStartTutorial, resumeId }) {
 
         <div className="ai-parts-grid">
           {PC_PARTS.map((p) => {
-            const sel      = selectedParts[p.id];
-            const db       = sel ? (PARTS[sel.id] ?? null) : null;
-            const fillBg   = db?.gradient ?? 'linear-gradient(135deg,#1a1a2e,#0d0d1e)';
-            const fillEmoji = db?.emoji   ?? '💻';
+            const sel       = selectedParts[p.id];
+            const fillBg    = sel?.gradient ?? 'linear-gradient(135deg,#1a1a2e,#0d0d1e)';
+            const fillEmoji = sel?.emoji    ?? '💻';
             const isActive = activeSlot === p.id;
             return (
               <div

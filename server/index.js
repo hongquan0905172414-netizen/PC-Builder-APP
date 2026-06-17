@@ -2,6 +2,12 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PARTS_DB = JSON.parse(readFileSync(join(__dirname, 'data', 'parts.json'), 'utf8'));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,44 +59,76 @@ function parseClaudeJson(rawText) {
 
 /* ── POST /api/chat ─────────────────────────────────────────── */
 
-const CHAT_SYSTEM = `You are AI Builder, an expert PC building consultant. Give specific, opinionated advice.
+// Catalog is derived from PARTS_DB itself — never hand-typed — so the
+// prompt's ID list can never drift out of sync with the real data file.
+// It carries id/name/category only: no price, no specs, ever.
+const CATALOG_BY_CATEGORY = Object.entries(PARTS_DB).reduce((acc, [id, p]) => {
+  (acc[p.category] ??= []).push(`${id} (${p.name})`);
+  return acc;
+}, {});
+const CATALOG_TEXT = Object.entries(CATALOG_BY_CATEGORY)
+  .map(([category, ids]) => `  ${category.padEnd(11)} → ${ids.join(' | ')}`)
+  .join('\n');
+
+const CHAT_SYSTEM = `You are AI Builder, a PC building expert. Give specific, opinionated advice.
 
 CRITICAL: Your ENTIRE response must be ONLY this JSON object — no text before it, no text after it, no markdown, no code fences:
 {
-  "message": "2-3 short sentences max. Direct and specific.",
+  "message": "2-3 short sentences max. Direct and specific. Never mention prices or dollar amounts.",
   "recommendations": []
 }
 
-The "recommendations" array is OPTIONAL. Include it ONLY when recommending specific parts. Show 2-3 options when comparing. Each entry:
+The "recommendations" array is OPTIONAL. Include it ONLY when recommending specific parts. Show 2-3 options when comparing. Each entry must be EXACTLY:
 {
-  "id": "kebab-case-id",
-  "name": "Full Part Name",
+  "id": "part-id from the catalog below",
   "category": "CPU | GPU | RAM | Storage | Motherboard | PSU | Case | Cooler",
-  "price": "$XXX",
   "badge": "3-5 word label e.g. Best for Gaming",
-  "specs": ["spec 1", "spec 2", "spec 3", "spec 4"],
-  "pros": ["pro 1", "pro 2", "pro 3"],
-  "cons": ["con 1", "con 2"],
-  "note": "Optional tradeoff note e.g. vs RTX 4070: 40% more performance for $200 extra"
+  "note": "Optional one-sentence comparison — no dollar amounts"
 }
 
-Preferred IDs to use (use these when the part matches):
-CPUs    → ryzen-5-7600x | ryzen-7-7800x3d | i5-14600k | i9-14900k
-GPUs    → rtx-4060 | rtx-4070 | rtx-4070-ti-super | rtx-4090 | rx-7800-xt
-RAM     → ddr5-32gb-corsair | ddr5-32gb-gskill
-Storage → samsung-990-pro-1tb | wd-sn850x-1tb
-Boards  → msi-b650-tomahawk | asus-b650-strix | asus-z790-hero
-PSUs    → corsair-rm850x | seasonic-focus-850
-Cases   → fractal-north | lian-li-o11 | nzxt-h510
-Coolers → noctua-nh-d15 | corsair-h150i-elite
+Do NOT include name, price, specs, pros, or cons in your output — those are looked up from our parts database automatically. You do not know the prices or specs of these parts — only their names and categories.
+
+FULL BUILD RULE: When a user asks for a complete PC build, ALWAYS return exactly 8 recommendations — one per category (CPU, GPU, Motherboard, RAM, Storage, Case, Cooler, PSU). Never describe any component only in prose — every component must be a card. Never return a partial build.
+
+Use ONLY these part IDs (id shown, name in parentheses for context):
+${CATALOG_TEXT}
 
 EXPERTISE RULES:
-- Give specific part names and real prices — never vague advice like "get a good GPU"
+- Give specific part names — never vague advice like "get a good GPU"
 - Always explain WHY one option is better for the user's stated goal
-- Mention compatibility gotchas: AM5 requires DDR5, LGA1700 for Intel 12-14th gen, check PSU wattage for RTX 4090
-- For budget advice: budget ~40% on GPU for gaming, ~25% on CPU, ~10% on RAM
-- Warn if a user's budget is too low for their stated goal
-- If a user has described their full build goal and budget, mention they can hit "Generate My Tutorial" to get a step-by-step assembly guide`;
+- Compatibility notes: AM5 requires DDR5; LGA1700 is for Intel 12th–14th Gen; RTX 4090 needs 850W+ PSU
+- For gaming builds: GPU slot has the most impact — prioritise it
+- Warn if the user's goal exceeds what their budget can realistically achieve
+- Once a user has a complete 8-part build, suggest they hit "Generate My Tutorial" for assembly instructions`;
+
+// Enrichment is the ONLY path price/specs reach the client. If the model
+// returns an ID we don't recognize, the recommendation is dropped entirely
+// — never passed through with whatever fields the model attached to it.
+// There is no fallback to LLM-supplied price/specs, by construction.
+function enrichRecommendations(recommendations) {
+  const enriched = [];
+  for (const rec of recommendations) {
+    const db = PARTS_DB[rec.id];
+    if (!db) {
+      console.error(`[enrichRecommendations] Unknown part id "${rec.id}" returned by the model — dropping it from the response.`);
+      continue;
+    }
+    enriched.push({
+      id:       rec.id,
+      name:     db.name,
+      category: db.category,
+      price:    db.price,
+      badge:    typeof rec.badge === 'string' ? rec.badge : (db.badge ?? ''),
+      emoji:    db.emoji     ?? '💻',
+      gradient: db.gradient  ?? 'linear-gradient(135deg, #1a1a2e, #0d0d1e)',
+      specs:    db.specs     ?? [],
+      pros:     db.pros      ?? [],
+      cons:     db.cons      ?? [],
+      note:     typeof rec.note === 'string' ? rec.note : null,
+    });
+  }
+  return enriched;
+}
 
 app.post('/api/chat', async (req, res) => {
   if (!checkApiKey(res)) return;
@@ -114,7 +152,7 @@ app.post('/api/chat', async (req, res) => {
     if (parsed) {
       res.json({
         reply: parsed.message ?? rawText,
-        recommendations: parsed.recommendations ?? [],
+        recommendations: enrichRecommendations(parsed.recommendations ?? []),
       });
     } else {
       res.json({ reply: rawText || "I couldn't generate a response.", recommendations: [] });

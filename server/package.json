@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.6"
   }
 }
