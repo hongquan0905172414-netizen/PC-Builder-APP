@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch index.js",
     "start": "node index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node ai/evaluation-system/runEval.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -2,6 +2,7 @@
   "ryzen-5-7600x": {
     "name": "AMD Ryzen 5 7600X",
     "category": "CPU",
+    "tier": 1,
     "price": "$249",
     "badge": "Budget Gaming Pick",
     "emoji": "🔴",
@@ -14,6 +15,7 @@
   "ryzen-7-7800x3d": {
     "name": "AMD Ryzen 7 7800X3D",
     "category": "CPU",
+    "tier": 3,
     "price": "$449",
     "badge": "Best Gaming CPU",
     "emoji": "🔴",
@@ -26,6 +28,7 @@
   "i5-14600k": {
     "name": "Intel Core i5-14600K",
     "category": "CPU",
+    "tier": 2,
     "price": "$299",
     "badge": "Best All-Rounder",
     "emoji": "🔵",
@@ -38,6 +41,7 @@
   "i9-14900k": {
     "name": "Intel Core i9-14900K",
     "category": "CPU",
+    "tier": 4,
     "price": "$549",
     "badge": "Content Creator Beast",
     "emoji": "🔵",
@@ -50,6 +54,7 @@
   "rtx-4060": {
     "name": "NVIDIA GeForce RTX 4060",
     "category": "GPU",
+    "tier": 1,
     "price": "$299",
     "badge": "1080p Champion",
     "emoji": "🟢",
@@ -62,6 +67,7 @@
   "rtx-4070": {
     "name": "NVIDIA GeForce RTX 4070",
     "category": "GPU",
+    "tier": 3,
     "price": "$599",
     "badge": "1440p Sweet Spot",
     "emoji": "🟢",
@@ -74,6 +80,7 @@
   "rtx-4070-ti-super": {
     "name": "NVIDIA RTX 4070 Ti Super",
     "category": "GPU",
+    "tier": 4,
     "price": "$799",
     "badge": "High-End Sweet Spot",
     "emoji": "🟢",
@@ -86,6 +93,7 @@
   "rtx-4090": {
     "name": "NVIDIA GeForce RTX 4090",
     "category": "GPU",
+    "tier": 5,
     "price": "$1,599",
     "badge": "Absolute Best",
     "emoji": "🟢",
@@ -98,6 +106,7 @@
   "rx-7800-xt": {
     "name": "AMD Radeon RX 7800 XT",
     "category": "GPU",
+    "tier": 2,
     "price": "$479",
     "badge": "AMD Best Value",
     "emoji": "🔴",
@@ -110,6 +119,7 @@
   "ddr5-32gb-corsair": {
     "name": "Corsair Vengeance 32 GB DDR5-6000",
     "category": "RAM",
+    "tier": 2,
     "price": "$89",
     "badge": "Best Value DDR5",
     "emoji": "⚡",
@@ -122,6 +132,7 @@
   "ddr5-32gb-gskill": {
     "name": "G.Skill Trident Z5 32 GB DDR5-6400",
     "category": "RAM",
+    "tier": 3,
     "price": "$129",
     "badge": "Premium DDR5 RGB",
     "emoji": "⚡",
@@ -134,6 +145,7 @@
   "ddr4-16gb-corsair": {
     "name": "Corsair Vengeance LPX 16 GB DDR4-3200",
     "category": "RAM",
+    "tier": 1,
     "price": "$45",
     "badge": "Budget DDR4",
     "emoji": "⚡",
@@ -146,6 +158,7 @@
   "samsung-990-pro-1tb": {
     "name": "Samsung 990 Pro 1 TB NVMe",
     "category": "Storage",
+    "tier": 2,
     "price": "$99",
     "badge": "Best NVMe SSD",
     "emoji": "💾",
@@ -158,6 +171,7 @@
   "wd-sn850x-1tb": {
     "name": "WD Black SN850X 1 TB NVMe",
     "category": "Storage",
+    "tier": 1,
     "price": "$89",
     "badge": "PlayStation Certified",
     "emoji": "💾",
@@ -170,6 +184,7 @@
   "msi-b650-tomahawk": {
     "name": "MSI MAG B650 Tomahawk WiFi",
     "category": "Motherboard",
+    "tier": 1,
     "price": "$199",
     "badge": "Best AMD Budget Board",
     "emoji": "🔌",
@@ -182,6 +197,7 @@
   "asus-b650-strix": {
     "name": "ASUS ROG STRIX B650-A Gaming WiFi",
     "category": "Motherboard",
+    "tier": 2,
     "price": "$249",
     "badge": "Best AMD Mid-Range",
     "emoji": "🔌",
@@ -194,6 +210,7 @@
   "asus-z790-hero": {
     "name": "ASUS ROG Maximus Z790 Hero",
     "category": "Motherboard",
+    "tier": 3,
     "price": "$549",
     "badge": "Intel Flagship",
     "emoji": "🔌",
@@ -206,6 +223,7 @@
   "corsair-rm850x": {
     "name": "Corsair RM850x 850W",
     "category": "PSU",
+    "tier": 2,
     "price": "$129",
     "badge": "Most Reliable PSU",
     "emoji": "🔋",
@@ -218,6 +236,7 @@
   "seasonic-focus-850": {
     "name": "Seasonic Focus GX-850",
     "category": "PSU",
+    "tier": 3,
     "price": "$149",
     "badge": "Premium Tier",
     "emoji": "🔋",
@@ -230,6 +249,7 @@
   "corsair-rm650x": {
     "name": "Corsair RM650x 650W",
     "category": "PSU",
+    "tier": 1,
     "price": "$109",
     "badge": "Solid Mid-Range PSU",
     "emoji": "🔋",
@@ -242,6 +262,7 @@
   "corsair-rm1000x": {
     "name": "Corsair RM1000x 1000W",
     "category": "PSU",
+    "tier": 4,
     "price": "$189",
     "badge": "High-End Headroom",
     "emoji": "🔋",
@@ -254,6 +275,7 @@
   "fractal-north": {
     "name": "Fractal Design North",
     "category": "Case",
+    "tier": 3,
     "price": "$119",
     "badge": "Best Looking Case",
     "emoji": "📦",
@@ -266,6 +288,7 @@
   "lian-li-o11": {
     "name": "Lian Li PC-O11 Dynamic EVO",
     "category": "Case",
+    "tier": 4,
     "price": "$149",
     "badge": "Best for Water Cooling",
     "emoji": "📦",
@@ -278,6 +301,7 @@
   "nzxt-h510": {
     "name": "NZXT H510",
     "category": "Case",
+    "tier": 2,
     "price": "$89",
     "badge": "Clean & Simple",
     "emoji": "📦",
@@ -290,6 +314,7 @@
   "nr200": {
     "name": "Cooler Master NR200",
     "category": "Case",
+    "tier": 1,
     "price": "$99",
     "badge": "Best Mini-ITX Case",
     "emoji": "📦",
@@ -302,6 +327,7 @@
   "noctua-nh-d15": {
     "name": "Noctua NH-D15",
     "category": "Cooler",
+    "tier": 1,
     "price": "$99",
     "badge": "Best Air Cooler",
     "emoji": "❄️",
@@ -314,6 +340,7 @@
   "corsair-h150i-elite": {
     "name": "Corsair iCUE H150i Elite Capellix",
     "category": "Cooler",
+    "tier": 2,
     "price": "$149",
     "badge": "Best 360 mm AIO",
     "emoji": "❄️",

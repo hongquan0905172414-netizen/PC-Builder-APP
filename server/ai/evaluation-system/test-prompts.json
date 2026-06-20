@@ -1,0 +1,39 @@
+[
+  {
+    "id": "no-downgrade-upgrade",
+    "description": "User owns an RTX 4070 and wants a GPU upgrade within budget — must not recommend anything weaker.",
+    "request": {
+      "message": "I currently have an RTX 4070 and want to upgrade my GPU. My budget is $1000.",
+      "budget": 1000,
+      "currentParts": { "GPU": "rtx-4070" }
+    },
+    "expect": {
+      "ok": true,
+      "noDowngradeFrom": { "category": "GPU", "id": "rtx-4070" }
+    }
+  },
+  {
+    "id": "vague-best-gaming-pc",
+    "description": "Vague request with no use case or budget — must ask a clarifying question, not guess.",
+    "request": {
+      "message": "What's the best gaming PC?"
+    },
+    "expect": {
+      "ok": true,
+      "clarifyingQuestionRequired": true
+    }
+  },
+  {
+    "id": "direct-budget-request",
+    "description": "Fully-specified request — must recommend immediately, no question, and stay within budget.",
+    "request": {
+      "message": "I want a great 1080p gaming GPU. My budget is $350.",
+      "budget": 350
+    },
+    "expect": {
+      "ok": true,
+      "clarifyingQuestionRequired": false,
+      "maxBudget": 350
+    }
+  }
+]

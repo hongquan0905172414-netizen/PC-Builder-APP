@@ -1,26 +1,20 @@
 /*
 ================================================================
-  pages/Wizard.jsx — PC Build Wizard (4 screens)
+  pages/Wizard.jsx — PC Build Wizard
 ================================================================
-  This component manages the entire wizard flow using React state.
-  All question/template/scoring logic is imported — not defined here.
+  This component manages the build flow using React state.
 
   SCREENS (managed by `screen` state):
-    'choose-path'  — Build your own vs Help me pick
-    'quiz'         — One question at a time
-    'results'      — Matched parts list + yes / tweak
-    'tweak'        — All questions at once, pre-filled
-
-  DATA / LOGIC IMPORTS:
-    data/questions.js — QUESTIONS, getActiveQuestions(), getOptions()
-    data/templates.js — TEMPLATES (used indirectly via scoring)
-    lib/scoring.js    — computeScores(), findTemplate()
+    'choose-path' — Build your own vs Help me pick (AI)
+    'build-own'   — Manual parts picker (BuildOwnScreen + PartPicker)
+    'ai-builder'  — AI chat builder (AIBuilderScreen, calls /api/chat)
+    'assembly'    — Lego-style step-by-step assembly guide
 
   STATE:
-    screen          — which screen is visible
-    answers         — { budget: '700', goal: 'gaming', ... }
-    currentStep     — index into the active question list (quiz mode)
-    matchedTemplate — the Template object returned by findTemplate()
+    screen      — which screen is visible
+    answers     — { budget: '700', goal: 'gaming', ... } — context sent to the AI
+    currentStep — legacy state, currently unused by any live screen
+    assemblyParts — parts passed from the AI builder into the assembly guide
 
   TO ADD A NEW SCREEN:
     1. Add a new state value for `screen`
@@ -33,9 +27,6 @@
 */
 
 import { useState, useEffect, useRef } from 'react';
-import { getActiveQuestions, getOptions } from '../data/questions';
-import { computeScores, findTemplate }    from '../lib/scoring';
-import { initPrices, tickPrices, cheapestFor, fmt, RETAILERS } from '../lib/prices';
 import { loadBuilds, saveBuilds } from '../lib/storage';
 import PC3D from '../components/PC3D';
 import PartPicker from './PartPicker';
@@ -46,47 +37,6 @@ import PartPicker from './PartPicker';
    Keep them in this file since they're tightly coupled to
    the wizard flow. Split into separate files if they grow large.
 ============================================================ */
-
-/** Single option button used on both quiz and tweak screens */
-function OptionBtn({ label, selected, onClick }) {
-  return (
-    <button
-      className={`option-btn${selected ? ' selected' : ''}`}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
-}
-
-function BudgetSlider({ value, onChange }) {
-  const maxBudget = 100000;
-  const budgetValue = Number(value) || 0;
-  const displayAmount = `$${budgetValue.toLocaleString()}`;
-  const fillPercent = Math.round((budgetValue / maxBudget) * 100);
-
-  return (
-    <div className="budget-slider">
-      <div className="budget-slider-header">
-        <div className="budget-slider-title">{displayAmount}</div>
-      </div>
-
-      <input
-        className="budget-input"
-        type="range"
-        min="0"
-        max={maxBudget}
-        step="100"
-        value={budgetValue}
-        onChange={(event) => onChange(String(event.target.value))}
-        style={{
-          background: `linear-gradient(90deg, var(--color-accent) ${fillPercent}%, var(--color-surface) ${fillPercent}%)`,
-        }}
-        aria-label="Budget slider"
-      />
-    </div>
-  );
-}
 
 /** The "choose your path" opening screen */
 function ChoosePathScreen({ onNeedHelp, onBuildOwn }) {
@@ -118,269 +68,10 @@ function ChoosePathScreen({ onNeedHelp, onBuildOwn }) {
   );
 }
 
-/** Step-through quiz — one question at a time */
-function QuizScreen({ answers, currentStep, onAnswer, onSelect, onNext, onBack }) {
-  const activeQuestions = getActiveQuestions(answers);
-  const total           = activeQuestions.length;
-  const q               = activeQuestions[currentStep];
-  const opts            = getOptions(q, answers);
-  const hasAnswer       = Boolean(answers[q.id]);
-  const isLast          = currentStep === total - 1;
-  const isBudget        = q.id === 'budget';
-
-  return (
-    <div className="screen">
-
-      {/* Progress bar */}
-      <div style={{ width: '100%' }}>
-        <div className="quiz-progress-row">
-          <span className="quiz-progress-text">
-            Question {currentStep + 1} of {total}
-          </span>
-        </div>
-        <div className="quiz-progress-track">
-          <div
-            className="quiz-progress-fill"
-            style={{ width: `${((currentStep + 1) / total) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Question text */}
-      <div className="quiz-question">{q.text}</div>
-
-      {/* Answer options */}
-      <div className="quiz-options">
-        {isBudget ? (
-          <BudgetSlider
-            value={answers[q.id]}
-            onChange={(value) => onAnswer(q.id, value)}
-          />
-        ) : (
-          opts.map((opt) => (
-            <OptionBtn
-              key={opt.value}
-              label={opt.label}
-              selected={answers[q.id] === opt.value}
-              onClick={() => onSelect(q.id, opt.value)}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Navigation — always show Back; only show Next for budget question */}
-      <div className="quiz-nav">
-        {currentStep > 0 && (
-          <button className="btn-ghost" onClick={onBack}>← Back</button>
-        )}
-        {isBudget && (
-          <button
-            className="btn-primary"
-            style={{ flex: 1 }}
-            disabled={!hasAnswer}
-            onClick={onNext}
-          >
-            {isLast ? 'See my build →' : 'Next →'}
-          </button>
-        )}
-      </div>
-
-    </div>
-  );
-}
-
-/** Parts list output after the engine runs */
-function ResultsScreen({ template, answers, onHappy, onTweak }) {
-  const [copied,     setCopied]     = useState(false);
-  const [prices,     setPrices]     = useState(() => initPrices(template.parts));
-  const [secsAgo,    setSecsAgo]    = useState(0);
-
-  // Simulate live price ticks every 8 seconds
-  useEffect(() => {
-    const tick    = setInterval(() => { setPrices((p) => tickPrices(p)); setSecsAgo(0); }, 8000);
-    const counter = setInterval(() => { setSecsAgo((s) => s + 1); }, 1000);
-    return () => { clearInterval(tick); clearInterval(counter); };
-  }, []);
-
-  const showRgb   = answers.rgb   && answers.rgb   !== 'none';
-  const showGlass = answers.glass === 'yes';
-
-  // Total using the cheapest retailer per part
-  const totalCheapest = template.parts.reduce((sum, part) => {
-    const p = prices[part.category];
-    return sum + (p ? Math.min(...Object.values(p)) : 0);
-  }, 0);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
-  return (
-    <div className="screen screen--top">
-      <div style={{ width: '100%' }}>
-
-        {/* 3D PC Model */}
-        <PC3D showRgb={showRgb} showGlass={showGlass} />
-
-        {/* Header */}
-        <div className="results-header" style={{ marginTop: '14px' }}>
-          <span className="template-badge">{template.id} · {template.name}</span>
-          <span className="results-price">{fmt(totalCheapest)}</span>
-        </div>
-
-        {/* Meta chips */}
-        <div className="results-meta" style={{ marginBottom: '12px' }}>
-          <div className="meta-chip">
-            <span className="meta-label">Compatibility</span>
-            <span className="meta-val meta-val--ok">No issues</span>
-          </div>
-          <div className="meta-chip">
-            <span className="meta-label">Est. wattage</span>
-            <span className="meta-val">{template.wattage}</span>
-          </div>
-          <div className="meta-chip" style={{ cursor: 'pointer' }} onClick={handleCopy}>
-            <span className="meta-label">Share</span>
-            <span className="meta-val meta-val--info">{copied ? 'Copied!' : 'Copy link'}</span>
-          </div>
-        </div>
-
-        {/* Live price indicator */}
-        <div className="price-live-row">
-          <span className="price-live-dot" />
-          <span className="price-live-text">Live prices · updated {secsAgo}s ago</span>
-          <span className="price-live-demo">demo</span>
-        </div>
-
-        {/* Price comparison table */}
-        <div className="price-table">
-          <div className="price-table-head">
-            <span className="pt-col-part">Part</span>
-            {RETAILERS.map((r) => (
-              <span key={r} className="pt-col-price">{r}</span>
-            ))}
-          </div>
-
-          {template.parts.map((part) => {
-            const catPrices = prices[part.category] || {};
-            const cheapest  = cheapestFor(catPrices);
-            return (
-              <div key={part.category} className="price-table-row">
-                <div className="pt-col-part">
-                  <span className="pt-category">{part.category}</span>
-                  <span className="pt-name">{part.name}</span>
-                </div>
-                {RETAILERS.map((retailer) => {
-                  const isBest = retailer === cheapest;
-                  return (
-                    <div key={retailer} className={`pt-col-price${isBest ? ' pt-best' : ''}`}>
-                      <span>{fmt(catPrices[retailer] ?? 0)}</span>
-                      {isBest && <span className="pt-best-badge">Best</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {/* Totals row */}
-          <div className="price-table-total">
-            <span className="pt-col-part">Total</span>
-            {RETAILERS.map((retailer) => {
-              const total = template.parts.reduce(
-                (sum, part) => sum + (prices[part.category]?.[retailer] ?? 0), 0
-              );
-              return (
-                <span key={retailer} className="pt-col-price pt-total-val">
-                  {fmt(total)}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="results-actions" style={{ marginTop: '14px' }}>
-          <button className="btn-ghost" style={{ flex: 1 }} onClick={onTweak}>
-            Tweak my answers
-          </button>
-          <button className="btn-primary" style={{ flex: 1 }} onClick={onHappy}>
-            Buy cheapest picks →
-          </button>
-        </div>
-
-        <div className="assembly-teaser">
-          Parts ordered?{' '}
-          <span style={{ color: 'var(--color-text-muted)' }}>Guided assembly mode</span>
-          {' '}coming in v2.0
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-/** All questions at once, pre-filled — user can change any and regenerate */
-function TweakScreen({ answers, onAnswerChange, onRegenerate, onBack }) {
-  const activeQuestions = getActiveQuestions(answers);
-
-  return (
-    <div className="screen screen--top">
-      <div style={{ width: '100%' }}>
-
-        <div className="tweak-header">
-          <div className="screen-title" style={{ fontSize: '20px' }}>Tweak your answers</div>
-          <div className="screen-subtitle" style={{ marginBottom: 0 }}>
-            Your previous picks are highlighted. Change any and regenerate.
-          </div>
-        </div>
-
-        {/* All active questions with current answers highlighted */}
-        {activeQuestions.map((q, index) => {
-          const opts = getOptions(q, answers);
-          return (
-            <div key={q.id} className="tweak-block">
-              <div className="tweak-q-label">Q{index + 1} — {q.text}</div>
-              <div className="tweak-options">
-                {q.id === 'budget' ? (
-                  <BudgetSlider
-                    value={answers[q.id]}
-                    onChange={(value) => onAnswerChange(q.id, value)}
-                  />
-                ) : (
-                  opts.map((opt) => (
-                    <OptionBtn
-                      key={opt.value}
-                      label={opt.label}
-                      selected={answers[q.id] === opt.value}
-                      onClick={() => onAnswerChange(q.id, opt.value)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="tweak-footer">
-          <button className="btn-ghost" onClick={onBack}>← Back to results</button>
-          <button className="btn-primary" style={{ flex: 1 }} onClick={onRegenerate}>
-            Regenerate build →
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-
 /* ============================================================
-   PART INTRO DATA + SCREEN
-   Shown after "Help me pick parts" — hover each icon to learn
-   what each component does before starting the quiz.
+   PC_PARTS — shared part metadata (emoji/color/description).
+   Used by the AI Builder parts grid and the Assembly guide's
+   highlight labels.
 ============================================================ */
 const PC_PARTS = [
   {
@@ -424,62 +115,6 @@ const PC_PARTS = [
     desc: "The power supply pumps electricity to every component inside. Think of it like the heart — if it's unreliable, everything suffers. A good one protects your parts; a cheap one can damage them.",
   },
 ];
-
-/** bare=true: hides the header text and button — used for the manual picker path */
-function PartIntroScreen({ onContinue, bare = false }) {
-  const [hoveredId, setHoveredId] = useState(null);
-  const part = PC_PARTS.find((p) => p.id === hoveredId) ?? null;
-
-  return (
-    <div className="part-intro">
-
-      <div className="part-intro-left">
-        {!bare && (
-          <>
-            <h1 className="part-intro-title">Your PC has 8 core parts.</h1>
-            <p className="part-intro-sub">Hover any part to learn what it does.</p>
-          </>
-        )}
-
-        <div className="part-icon-grid" style={bare ? { marginBottom: 0 } : undefined}>
-          {PC_PARTS.map((p) => (
-            <div
-              key={p.id}
-              className={`part-icon-card${hoveredId === p.id ? ' part-icon-card--active' : ''}`}
-              onMouseEnter={() => setHoveredId(p.id)}
-              onMouseLeave={() => setHoveredId(null)}
-            >
-              <div className="part-icon-box" style={{ background: p.bg }}>
-                <span className="part-icon-emoji">{p.emoji}</span>
-              </div>
-              <span className="part-icon-label">{p.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {!bare && onContinue && (
-          <button className="btn-primary" style={{ alignSelf: 'flex-start' }} onClick={onContinue}>
-            Help me pick my parts →
-          </button>
-        )}
-      </div>
-
-      <div className={`part-intro-right${part ? ' part-intro-right--show' : ''}`}>
-        {part && (
-          <div className="part-intro-desc">
-            <div className="part-intro-desc-name" style={{ color: part.color }}>
-              {part.label}
-            </div>
-            <div className="part-intro-desc-tagline">{part.tagline}</div>
-            <p className="part-intro-desc-body">{part.desc}</p>
-          </div>
-        )}
-      </div>
-
-    </div>
-  );
-}
-
 
 const BUILD_ROWS = [
   { id: 'cpu',         label: 'CPU',          emoji: '⚙️',  watts: 65  },
@@ -616,32 +251,6 @@ function BuildOwnScreen({ buildId }) {
   );
 }
 
-
-/** Fork shown after "Help me pick" — manual grid vs AI chat */
-function PathForkScreen({ onManual, onAI }) {
-  return (
-    <div className="screen">
-      <h1 className="screen-title">How do you want to build?</h1>
-      <p  className="screen-subtitle">Pick the approach that feels right.</p>
-      <div className="path-cards">
-        <button className="path-card" onClick={onManual}>
-          <div className="path-card-eyebrow">I know what I want</div>
-          <div className="path-card-title">Pick parts by myself</div>
-          <div className="path-card-desc">
-            Browse the 8 core components. Hover to learn what each one does.
-          </div>
-        </button>
-        <button className="path-card path-card--highlighted" onClick={onAI}>
-          <div className="path-card-eyebrow">Not sure where to start</div>
-          <div className="path-card-title">Chat with AI Builder</div>
-          <div className="path-card-desc">
-            Tell the AI what you need. It will guide you and fill in the parts live.
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Rich card shown in the chat when Claude recommends a part */
 function PartCard({ rec, onAdd }) {
@@ -1420,101 +1029,11 @@ export default function Wizard({ onBack, resumeBuildId }) {
   // User's answers: { budget: '700', goal: 'gaming', ... }
   const [answers, setAnswers] = useState({ budget: '50000' });
 
-  // Current step index into the active question list (quiz mode)
+  // Current step index — legacy state, no live screen reads it anymore
   const [currentStep, setCurrentStep] = useState(0);
-
-  // The matched Template object from findTemplate()
-  const [matchedTemplate, setMatchedTemplate] = useState(null);
 
   // Parts selected in the AI builder — passed to AssemblyScreen
   const [assemblyParts, setAssemblyParts] = useState({});
-
-  /* ----------------------------------------------------------
-    Removes answers for questions that are no longer applicable.
-    Called whenever an answer changes (e.g. if RGB changes to
-    'none', glass + cables answers are cleared automatically).
-  ---------------------------------------------------------- */
-  function pruneAndUpdate(newAnswers) {
-    const active   = getActiveQuestions(newAnswers);
-    const validIds = new Set(active.map((q) => q.id));
-    const pruned   = Object.fromEntries(
-      Object.entries(newAnswers).filter(([id]) => validIds.has(id))
-    );
-    return pruned;
-  }
-
-  /* ----------------------------------------------------------
-    Quiz: record an answer and re-prune conditional answers
-  ---------------------------------------------------------- */
-  function handleAnswer(questionId, value) {
-    const updated = pruneAndUpdate({ ...answers, [questionId]: value });
-    setAnswers(updated);
-  }
-
-  /* ----------------------------------------------------------
-    Quiz: advance to the next step or run the engine on the last
-  ---------------------------------------------------------- */
-  function handleNext() {
-    const active = getActiveQuestions(answers);
-    if (currentStep < active.length - 1) {
-      setCurrentStep((s) => s + 1);
-    } else {
-      runEngine();
-    }
-  }
-
-  /* ----------------------------------------------------------
-    Quiz: record an answer AND immediately advance (used for
-    all questions except budget, which needs an explicit Next)
-  ---------------------------------------------------------- */
-  function handleSelect(questionId, value) {
-    const updated = pruneAndUpdate({ ...answers, [questionId]: value });
-    setAnswers(updated);
-    const active = getActiveQuestions(updated);
-    if (currentStep < active.length - 1) {
-      setCurrentStep((s) => s + 1);
-    } else {
-      const scores   = computeScores(updated);
-      const template = findTemplate(scores);
-      setMatchedTemplate(template);
-      setScreen('results');
-    }
-  }
-
-  /* ----------------------------------------------------------
-    Quiz: go back one step
-  ---------------------------------------------------------- */
-  function handleQuizBack() {
-    setCurrentStep((s) => Math.max(0, s - 1));
-  }
-
-  /* ----------------------------------------------------------
-    Run the scoring engine and show results
-  ---------------------------------------------------------- */
-  function runEngine() {
-    const scores   = computeScores(answers);
-    const template = findTemplate(scores);
-    setMatchedTemplate(template);
-    setScreen('results');
-  }
-
-  /* ----------------------------------------------------------
-    Tweak: update an answer and re-prune in real time
-  ---------------------------------------------------------- */
-  function handleTweakAnswer(questionId, value) {
-    const updated = pruneAndUpdate({ ...answers, [questionId]: value });
-    setAnswers(updated);
-  }
-
-  /* ----------------------------------------------------------
-    "Happy" — open buy links in new tabs
-    TODO: replace the alert with real affiliate URL logic once
-          the urls in data/templates.js are filled in.
-  ---------------------------------------------------------- */
-  function handleHappy() {
-    // matchedTemplate.parts.forEach(p => window.open(p.url, '_blank'));
-    alert('Opening buy links! Add real URLs to each part in client/src/data/templates.js');
-  }
 
   /* ----------------------------------------------------------
     Nav: go back to the landing page
@@ -1523,7 +1042,6 @@ export default function Wizard({ onBack, resumeBuildId }) {
     setScreen('choose-path');
     setAnswers({});
     setCurrentStep(0);
-    setMatchedTemplate(null);
     onBack();
   }
 
@@ -1559,21 +1077,6 @@ export default function Wizard({ onBack, resumeBuildId }) {
         <BuildOwnScreen buildId={resumeBuildId ?? undefined} />
       )}
 
-      {screen === 'path-fork' && (
-        <PathForkScreen
-          onManual={() => setScreen('parts-manual')}
-          onAI={() => setScreen('ai-builder')}
-        />
-      )}
-
-      {screen === 'parts-manual' && (
-        <PartIntroScreen bare />
-      )}
-
-      {screen === 'parts-intro' && (
-        <PartIntroScreen onContinue={() => setScreen('quiz')} />
-      )}
-
       {screen === 'ai-builder' && (
         <AIBuilderScreen
           answers={answers}
@@ -1586,35 +1089,6 @@ export default function Wizard({ onBack, resumeBuildId }) {
         <AssemblyScreen
           selectedParts={assemblyParts}
           onBack={() => setScreen('ai-builder')}
-        />
-      )}
-
-      {screen === 'quiz' && (
-        <QuizScreen
-          answers={answers}
-          currentStep={currentStep}
-          onAnswer={handleAnswer}
-          onSelect={handleSelect}
-          onNext={handleNext}
-          onBack={handleQuizBack}
-        />
-      )}
-
-      {screen === 'results' && matchedTemplate && (
-        <ResultsScreen
-          template={matchedTemplate}
-          answers={answers}
-          onHappy={handleHappy}
-          onTweak={() => setScreen('tweak')}
-        />
-      )}
-
-      {screen === 'tweak' && (
-        <TweakScreen
-          answers={answers}
-          onAnswerChange={handleTweakAnswer}
-          onRegenerate={runEngine}
-          onBack={() => setScreen('results')}
         />
       )}
 

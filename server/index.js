@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { orchestrate } from './ai/orchestration/orchestrate.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PARTS_DB = JSON.parse(readFileSync(join(__dirname, 'data', 'parts.json'), 'utf8'));
@@ -17,6 +18,23 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running.' });
+});
+
+/* ── POST /api/recommend ────────────────────────────────────── */
+// SYSTEM: none — transport plumbing only. This route does not decide
+// recommendations or tone; it just hands the request to orchestration
+// (server/ai/orchestration/orchestrate.js) and returns what comes back.
+
+app.post('/api/recommend', async (req, res) => {
+  if (!checkApiKey(res)) return;
+
+  try {
+    const result = await orchestrate(req.body ?? {});
+    res.json(result);
+  } catch (err) {
+    console.error('Orchestration error:', err.message);
+    res.status(500).json({ ok: false, message: 'Something went wrong building a recommendation.' });
+  }
 });
 
 /* ── Shared helpers ─────────────────────────────────────────── */
