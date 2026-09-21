@@ -26,9 +26,11 @@
 ================================================================
 */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { loadBuilds, saveBuilds } from '../lib/storage';
 import PC3D from '../components/PC3D';
+import LegoBuild3D from '../components/LegoBuild3D';
+import PartGlyph from '../components/PartGlyph';
 import PartPicker from './PartPicker';
 
 /* ============================================================
@@ -127,7 +129,7 @@ const BUILD_ROWS = [
   { id: 'psu',         label: 'Power Supply', emoji: '⚡',  watts: 0   },
 ];
 
-function BuildOwnScreen({ buildId }) {
+function BuildOwnScreen({ buildId, onStartAssembly }) {
   const [activeBuildId] = useState(
     () => buildId ?? String(Date.now())
   );
@@ -162,6 +164,7 @@ function BuildOwnScreen({ buildId }) {
   const total = Object.values(selected).reduce(
     (sum, p) => sum + (p?.cents ?? 0), 0
   );
+  const pickedCount = Object.values(selected).filter(Boolean).length;
 
   function fmtPrice(cents) {
     return cents ? '$' + (cents / 100).toLocaleString('en-US') : '—';
@@ -247,6 +250,22 @@ function BuildOwnScreen({ buildId }) {
         <span className="build-total-price">{total ? fmtPrice(total) : '—'}</span>
       </div>
 
+      {/* Go to the step-by-step assembly guide using these parts */}
+      <div className="build-assembly-cta">
+        <button
+          className="build-assembly-btn"
+          disabled={pickedCount === 0}
+          onClick={() => onStartAssembly?.(selected)}
+        >
+          🔧 Build It — Step-by-Step Guide
+        </button>
+        <p className="build-assembly-hint">
+          {pickedCount === 0
+            ? 'Pick at least one part to start the assembly guide.'
+            : `Walks you through putting your ${pickedCount} selected part${pickedCount === 1 ? '' : 's'} together.`}
+        </p>
+      </div>
+
     </div>
   );
 }
@@ -300,306 +319,114 @@ function PartCard({ rec, onAdd }) {
   );
 }
 
-const ASSEMBLY_STEPS = [
-  {
-    id: 'workspace', emoji: '🛡️', highlight: null,
-    title: 'Set Up Your Workspace',
-    subtitle: 'Before you open any boxes',
-    components: [
-      { emoji: '🪛', name: 'Phillips #2 Screwdriver', note: 'The only tool you need' },
-      { emoji: '🛡️', name: 'Anti-static Wrist Strap', note: 'Clips to bare metal on the case' },
-      { emoji: '📦', name: 'All Part Boxes', note: 'Unbox and lay flat nearby' },
-    ],
-    steps: [
-      'Find a large flat surface — a kitchen table or desk works perfectly',
-      'Put on your anti-static wrist strap and clip it to the metal case frame',
-      'Unbox every component and keep all bags of screws labelled nearby',
-      'Open the motherboard manual and bookmark the RAM slot diagram',
-    ],
-    tip: 'Take a photo of your components before building — great reference for later',
-  },
-  {
-    id: 'cpu', emoji: '🧠', highlight: 'cpu',
-    title: 'Install the CPU',
-    subtitle: 'The brain — handle by the edges only',
-    components: [
-      { emoji: '⚙️', name: 'CPU Chip', note: 'Hold edges only, never touch pins' },
-      { emoji: '🔩', name: 'ZIF Lever', note: 'Already attached to the socket' },
-      { emoji: '🧴', name: 'Thermal Paste', note: 'Usually included with the cooler' },
-    ],
-    steps: [
-      'Lift the ZIF lever on the motherboard socket fully upright',
-      'Find the small golden triangle on one corner of the CPU chip',
-      'Match that triangle to the triangle marker on the socket — drop the CPU straight in',
-      'No pressure needed — it falls in by gravity when aligned',
-      'Lower the lever back down to lock it in place',
-      'Apply a small pea-sized dot of thermal paste in the centre of the CPU',
-    ],
-    warning: 'Never press or force the CPU in. If it needs pressure, it is misaligned — stop.',
-    tip: 'The triangle markers are small. Look closely at the corner of the chip and socket.',
-  },
-  {
-    id: 'cooler', emoji: '❄️', highlight: 'cooling',
-    title: 'Install the CPU Cooler',
-    subtitle: 'Keep those temperatures in check',
-    components: [
-      { emoji: '❄️', name: 'CPU Cooler', note: 'Tower heatsink or AIO radiator' },
-      { emoji: '🔩', name: 'Mounting Screws', note: 'Included with the cooler' },
-      { emoji: '🔌', name: 'Fan Power Cable', note: '4-pin — plugs into CPU_FAN header' },
-    ],
-    steps: [
-      'Peel the protective film off the flat copper base of the cooler',
-      'Align the cooler mounting bracket with the four holes around the CPU socket',
-      'Lower the cooler straight down — the thermal paste spreads itself',
-      'Tighten the screws in a diagonal (X) pattern, a little at a time on each corner',
-      'Plug the fan cable into the CPU_FAN header on the motherboard',
-    ],
-    warning: 'Tighten screws evenly — never fully tighten one before the others are started.',
-    tip: 'A firm press and slight twist tells you the paste has spread evenly.',
-  },
-  {
-    id: 'ram', emoji: '📋', highlight: 'ram',
-    title: 'Install the RAM',
-    subtitle: 'Your desk space — snap it in',
-    components: [
-      { emoji: '📋', name: 'RAM Sticks ×2', note: '32 GB DDR5 kit' },
-      { emoji: '🔲', name: 'DIMM Slots A2 + B2', note: 'Check the manual — skip the first slot' },
-    ],
-    steps: [
-      'Check the motherboard manual for correct slots — usually A2 and B2 (not the ones closest to the CPU)',
-      'Open the retention clips on both ends of each target slot',
-      'Line up the notch cut-out on the RAM stick with the bump in the slot',
-      'Press down firmly with both thumbs — equal pressure on both ends at the same time',
-      'The retention clips will snap shut automatically when it seats fully',
-    ],
-    warning: 'DDR5 only fits one direction. If it is not sliding in, flip it 180°.',
-    tip: 'You will hear a satisfying double-click when both ends lock. If no click, press harder.',
-  },
-  {
-    id: 'storage', emoji: '💾', highlight: 'storage',
-    title: 'Install the M.2 SSD',
-    subtitle: 'Tiny card, blazing speed',
-    components: [
-      { emoji: '💾', name: 'M.2 NVMe SSD', note: 'About the size of a stick of gum' },
-      { emoji: '🔩', name: 'M.2 Retention Screw', note: 'Tiny — check the mobo accessory bag' },
-      { emoji: '🛡️', name: 'M.2 Heatsink Cover', note: 'Remove before inserting, replace after' },
-    ],
-    steps: [
-      'Find the M.2 slot on the motherboard — usually below the CPU under a metal cover',
-      'Unscrew and lift the heatsink cover off',
-      'Slide the SSD into the slot at roughly 30° (like inserting a letter into an envelope)',
-      'Gently press the far end flat and screw in the tiny retention screw to hold it down',
-      'Replace the heatsink cover over the SSD',
-    ],
-    tip: 'The SSD sticks up at an angle before screwing — completely normal. Do not force it flat.',
-  },
-  {
-    id: 'case-prep', emoji: '🖥️', highlight: 'case',
-    title: 'Prepare the Case',
-    subtitle: 'Build the shell first',
-    components: [
-      { emoji: '🖥️', name: 'PC Case', note: 'Remove both side panels' },
-      { emoji: '🔩', name: 'Standoffs ×9', note: 'Usually pre-installed for ATX' },
-      { emoji: '🛡️', name: 'I/O Shield', note: 'Included in your motherboard box' },
-    ],
-    steps: [
-      'Remove both side panels — most use thumbscrews or a latch at the back',
-      'Take the I/O shield from the motherboard box and push it into the rear cutout from inside the case — it snaps in with firm pressure',
-      'Verify 9 standoffs are installed in the ATX layout (check your case manual)',
-      'Remove any drive bay covers or plastic covers you do not need',
-    ],
-    warning: 'Install the I/O shield BEFORE the motherboard — nearly impossible to add after.',
-    tip: 'The I/O shield has sharp stamped metal tabs. Push it with a cloth-wrapped screwdriver.',
-  },
-  {
-    id: 'motherboard', emoji: '🔌', highlight: 'motherboard',
-    title: 'Install the Motherboard',
-    subtitle: 'The city finds its home',
-    components: [
-      { emoji: '🔌', name: 'Motherboard', note: 'With CPU, cooler, and RAM already installed' },
-      { emoji: '🔩', name: 'Mobo Screws ×9', note: 'Usually included with the case' },
-    ],
-    steps: [
-      'Lower the motherboard in at a slight angle so the ports slide into the I/O shield cutout',
-      'Rest it flat — every screw hole should sit directly over a standoff',
-      'Start all 9 screws by hand before tightening any of them',
-      'Tighten in a star pattern (centre → diagonal corners), snug but not over-tight',
-    ],
-    warning: 'Do not fully tighten one screw before the others are started — it warps the board.',
-    tip: 'The I/O shield tabs will push against the board ports. A little resistance is normal.',
-  },
-  {
-    id: 'psu', emoji: '⚡', highlight: 'psu',
-    title: 'Install the Power Supply',
-    subtitle: 'The heartbeat of your build',
-    components: [
-      { emoji: '⚡', name: 'Power Supply Unit', note: '850W fully modular' },
-      { emoji: '🔩', name: 'PSU Screws ×4', note: 'Included with the PSU' },
-      { emoji: '🔌', name: '24-pin ATX Cable', note: 'Main board power — right side of mobo' },
-      { emoji: '🔌', name: '8-pin EPS Cable', note: 'CPU power — top-left corner of mobo' },
-      { emoji: '🔌', name: 'PCIe Cables ×2', note: 'GPU power — route now, plug in at GPU step' },
-    ],
-    steps: [
-      'Slide the PSU into the bottom chamber — fan facing DOWN toward the floor vent',
-      'Screw in the 4 rear PSU screws',
-      'Route the 24-pin ATX cable through the back panel cutout to the right side of the motherboard and plug it in',
-      'Route the 8-pin EPS cable to the top-left of the motherboard and plug it in',
-      'Route PCIe cables toward where the GPU will go — leave them loose for now',
-    ],
-    tip: 'Thread cables through back-panel cutouts before connecting — cleaner look, better airflow.',
-  },
-  {
-    id: 'gpu', emoji: '🎮', highlight: 'gpu',
-    title: 'Install the GPU',
-    subtitle: 'The artist takes the stage',
-    components: [
-      { emoji: '🎮', name: 'Graphics Card', note: 'The biggest part in the build' },
-      { emoji: '🔩', name: 'PCIe Bracket Screws ×2', note: 'Secure card to the case' },
-      { emoji: '🔌', name: 'PCIe Power Cables', note: '2× 8-pin or 1× 16-pin from the PSU' },
-    ],
-    steps: [
-      'Remove 2–3 PCIe slot covers from the rear of the case (line them up with the GPU bracket)',
-      'Unlock the PCIe x16 retention clip on the motherboard',
-      'Lower the GPU straight down into the long PCIe x16 slot until you hear it click',
-      'Screw the bracket into the rear of the case with 2 screws',
-      'Plug the PCIe power cables from the PSU into the GPU connectors',
-    ],
-    warning: 'Do not skip the power cables — the GPU will not display anything without them.',
-    tip: 'Listen for the click. If you do not hear it, the GPU is not fully seated — press again.',
-  },
-  {
-    id: 'boot', emoji: '🚀', highlight: null,
-    title: 'First Boot',
-    subtitle: 'The moment of truth',
-    components: [
-      { emoji: '🖥️', name: 'Monitor', note: 'Plug into the GPU, not the motherboard' },
-      { emoji: '⌨️', name: 'Keyboard + Mouse', note: 'Any USB port on the I/O panel' },
-      { emoji: '🔌', name: 'Power Cable', note: 'Into the PSU rear socket' },
-    ],
-    steps: [
-      'Connect the monitor DisplayPort or HDMI cable to the GPU output (not the motherboard)',
-      'Plug keyboard and mouse into USB ports on the rear I/O panel',
-      'Connect the power cable to the PSU, flip the PSU switch to ON (marked I)',
-      'Press the case power button — the PC should start and show the BIOS screen',
-      'In BIOS: find the XMP / EXPO setting and enable it so RAM runs at full speed',
-      'Save and exit BIOS, then boot from a USB drive to install your OS',
-    ],
-    warning: 'No display? Check: monitor is in the GPU port, GPU power cables are fully clicked in, RAM is reseated.',
-    tip: 'The first boot usually goes straight to BIOS — that is completely normal.',
-  },
+/* ============================================================
+   LEGO-STYLE ASSEMBLY GUIDE
+
+   Wordless on purpose. Each page shows only two things, the
+   way a Lego booklet does:
+     1. a tray of the pieces you need for this page
+     2. a picture of the build so far, with the new piece
+        floating beside its slot and an arrow pointing in
+
+   piece — which 3D piece gets added (null = nothing new,
+           e.g. the cable page and the finished page)
+   need  — which of the user's picked parts this page is for;
+           pages for parts they did not pick are skipped
+   tray  — [glyph name, how many] for the parts tray
+============================================================ */
+const LEGO_STEPS = [
+  { piece: 'case',        need: 'case',        tray: [['case', 1], ['screwdriver', 1]] },
+  { piece: 'psu',         need: 'psu',         tray: [['psu', 1], ['screws', 4]] },
+  { piece: 'motherboard', need: 'motherboard', tray: [['motherboard', 1], ['screws', 9]] },
+  { piece: 'cpu',         need: 'cpu',         tray: [['cpu', 1]] },
+  { piece: 'cpu-cooler',  need: 'cpu-cooler',  tray: [['paste', 1], ['cpu-cooler', 1], ['screws', 4]] },
+  { piece: 'ram-1',       need: 'memory',      tray: [['ram', 1]] },
+  { piece: 'ram-2',       need: 'memory',      tray: [['ram', 1]] },
+  { piece: 'storage',     need: 'storage',     tray: [['storage', 1], ['screws', 1]] },
+  { piece: 'gpu',         need: 'gpu',         tray: [['gpu', 1], ['screws', 2]] },
+  { piece: null,          need: null,          tray: [['cable', 3]] },
+  { piece: 'glass',       need: 'case',        tray: [['glass', 1], ['screws', 2]] },
+  { piece: null,          need: null,          tray: [] },
 ];
 
-/** Lego-style step-by-step assembly guide */
-function AssemblyScreen({ selectedParts = {}, onBack }) {
+/** Lego-style step-by-step assembly guide — pictures, no words */
+function AssemblyScreen({ selectedParts = {}, onBack, backLabel = 'Back' }) {
   const [step, setStep] = useState(0);
-  const current = ASSEMBLY_STEPS[step];
-  const total   = ASSEMBLY_STEPS.length;
 
-  const cpuName  = selectedParts['cpu']?.name  ?? 'your CPU';
-  const gpuName  = selectedParts['gpu']?.name  ?? 'your GPU';
-  const caseName = selectedParts['case']?.name ?? 'your case';
+  // Only show pages for parts the user actually picked.
+  // If they picked nothing at all, show the whole guide.
+  const pages = useMemo(() => {
+    const anyPicked = Object.values(selectedParts).some(Boolean);
+    if (!anyPicked) return LEGO_STEPS;
+    return LEGO_STEPS.filter((s) => !s.need || selectedParts[s.need]);
+  }, [selectedParts]);
 
-  // Personalise a couple of step subtitles with real part names
-  const subtitle = current.id === 'gpu'  ? `Installing the ${gpuName}`
-                 : current.id === 'cpu'  ? `Installing the ${cpuName}`
-                 : current.id === 'case-prep' ? `Preparing the ${caseName}`
-                 : current.subtitle;
+  const total   = pages.length;
+  const safe    = Math.min(step, total - 1);
+  const current = pages[safe];
+
+  // Everything placed on earlier pages is already in the picture.
+  // The last page has no incoming piece, so it shows the finished build.
+  const installed = pages
+    .slice(0, safe)
+    .map((s) => s.piece)
+    .filter(Boolean);
 
   return (
-    <div className="lego-assembly">
+    <div className="lego-page">
 
-      {/* Progress bar */}
-      <div className="lego-progress">
-        <button className="lego-back-btn" onClick={onBack}>← Back to AI Chat</button>
-        <div className="lego-progress-track">
-          <div className="lego-progress-fill" style={{ width: `${((step + 1) / total) * 100}%` }} />
-        </div>
-        <span className="lego-step-count">Step {step + 1} of {total}</span>
-      </div>
+      {/* Leave the guide — no label, just an X */}
+      <button className="lego-close" onClick={onBack} title={backLabel} aria-label={backLabel}>
+        ✕
+      </button>
 
-      {/* Body */}
-      <div className="lego-body">
+      {/* Step number, in the corner box Lego puts it in */}
+      <div className="lego-step-badge">{safe + 1}</div>
 
-        {/* Left: instructions */}
-        <div className="lego-left">
-          <div className="lego-step-emoji">{current.emoji}</div>
-          <h2 className="lego-step-title">{current.title}</h2>
-          <p className="lego-step-subtitle">{subtitle}</p>
-
-          {/* Component tray */}
-          <p className="lego-section-label">What you need</p>
-          <div className="lego-component-tray">
-            {current.components.map((c, i) => (
-              <div key={i} className="lego-component-card">
-                <span className="lego-component-emoji">{c.emoji}</span>
-                <span className="lego-component-name">{c.name}</span>
-                <span className="lego-component-note">{c.note}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Steps */}
-          <p className="lego-section-label">Steps</p>
-          <ol className="lego-steps-list">
-            {current.steps.map((s, i) => (
-              <li key={i} className="lego-step-item">
-                <span className="lego-step-num">{i + 1}</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ol>
-
-          {current.warning && (
-            <div className="lego-warning">⚠️ {current.warning}</div>
-          )}
-          {current.tip && (
-            <div className="lego-tip">💡 {current.tip}</div>
-          )}
-        </div>
-
-        {/* Right: 3D model */}
-        <div className="lego-right">
-          <PC3D
-            highlighted={current.highlight}
-            showRgb={!!selectedParts['ram']}
-            showGlass={['lian-li-o11','nzxt-h510'].includes(selectedParts['case']?.id)}
-            height="100%"
-          />
-          {current.highlight && (
-            <div className="lego-3d-label">
-              {PC_PARTS.find(p => p.id === current.highlight)?.label} ↑ highlighted in the model
+      {/* Parts tray for this page */}
+      {current.tray.length > 0 && (
+        <div className="lego-tray">
+          {current.tray.map(([kind, count], i) => (
+            <div key={i} className="lego-tray-item">
+              <div className="lego-tray-glyph"><PartGlyph kind={kind} /></div>
+              <span className="lego-tray-count">{count}x</span>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer nav */}
-      <div className="lego-footer">
-        <button
-          className="lego-nav-btn lego-nav-btn--back"
-          onClick={() => setStep(s => Math.max(0, s - 1))}
-          disabled={step === 0}
-        >
-          ← Previous
-        </button>
-
-        <div className="lego-dots">
-          {ASSEMBLY_STEPS.map((_, i) => (
-            <button
-              key={i}
-              className={`lego-dot${i === step ? ' lego-dot--active' : i < step ? ' lego-dot--done' : ''}`}
-              onClick={() => setStep(i)}
-            />
           ))}
         </div>
+      )}
 
-        <button
-          className="lego-nav-btn lego-nav-btn--next"
-          onClick={() => setStep(s => Math.min(total - 1, s + 1))}
-          disabled={step === total - 1}
-        >
-          {step === total - 1 ? '🎉 Done!' : 'Next →'}
-        </button>
+      {/* The build */}
+      <div className="lego-canvas">
+        <LegoBuild3D installed={installed} incoming={current.piece} />
+      </div>
+
+      {/* Page turn */}
+      <button
+        className="lego-arrow lego-arrow--prev"
+        onClick={() => setStep((s) => Math.max(0, s - 1))}
+        disabled={safe === 0}
+        aria-label="Previous step"
+      >
+        ‹
+      </button>
+      <button
+        className="lego-arrow lego-arrow--next"
+        onClick={() => setStep((s) => Math.min(total - 1, s + 1))}
+        disabled={safe === total - 1}
+        aria-label="Next step"
+      >
+        ›
+      </button>
+
+      <div className="lego-dots">
+        {pages.map((_, i) => (
+          <button
+            key={i}
+            className={`lego-dot${i === safe ? ' lego-dot--active' : i < safe ? ' lego-dot--done' : ''}`}
+            onClick={() => setStep(i)}
+            aria-label={`Step ${i + 1}`}
+          />
+        ))}
       </div>
 
     </div>
@@ -1032,8 +859,9 @@ export default function Wizard({ onBack, resumeBuildId }) {
   // Current step index — legacy state, no live screen reads it anymore
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Parts selected in the AI builder — passed to AssemblyScreen
+  // Parts passed to AssemblyScreen, and which screen sent us there
   const [assemblyParts, setAssemblyParts] = useState({});
+  const [assemblyFrom, setAssemblyFrom]   = useState('ai-builder');
 
   /* ----------------------------------------------------------
     Nav: go back to the landing page
@@ -1074,13 +902,24 @@ export default function Wizard({ onBack, resumeBuildId }) {
       )}
 
       {screen === 'build-own' && (
-        <BuildOwnScreen buildId={resumeBuildId ?? undefined} />
+        <BuildOwnScreen
+          buildId={resumeBuildId ?? undefined}
+          onStartAssembly={(parts) => {
+            setAssemblyParts(parts);
+            setAssemblyFrom('build-own');
+            setScreen('assembly');
+          }}
+        />
       )}
 
       {screen === 'ai-builder' && (
         <AIBuilderScreen
           answers={answers}
-          onStartTutorial={(parts) => { setAssemblyParts(parts); setScreen('assembly'); }}
+          onStartTutorial={(parts) => {
+            setAssemblyParts(parts);
+            setAssemblyFrom('ai-builder');
+            setScreen('assembly');
+          }}
           resumeId={resumeBuildId ?? undefined}
         />
       )}
@@ -1088,7 +927,8 @@ export default function Wizard({ onBack, resumeBuildId }) {
       {screen === 'assembly' && (
         <AssemblyScreen
           selectedParts={assemblyParts}
-          onBack={() => setScreen('ai-builder')}
+          backLabel={assemblyFrom === 'build-own' ? 'Back to My Build' : 'Back to AI Chat'}
+          onBack={() => setScreen(assemblyFrom)}
         />
       )}
 
