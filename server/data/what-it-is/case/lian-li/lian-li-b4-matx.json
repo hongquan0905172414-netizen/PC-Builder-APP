@@ -1,0 +1,29 @@
+{
+  "id": "lian-li-b4-matx",
+  "name": "Lian Li B4-mATX",
+  "brand": "Lian Li",
+  "category": "case",
+  "released": "2026-06",
+  "source": "https://lian-li.com/product/b4-matx/",
+  "variants": ["B4-mATX Mesh", "B4-mATX Wood"],
+  "size": { "depth_mm": 420, "width_mm": 191, "height_mm": 288 },
+  "fits": {
+    "motherboards": ["Micro-ATX", "Mini-ITX"],
+    "gpu_max_length_mm": 358,
+    "cpu_cooler_max_height_mm": 159,
+    "psu_form_factor": ["ATX", "SFX"],
+    "psu_max_length_mm": 140,
+    "radiator_max_mm": 360
+  },
+  "looks": {
+    "colors": ["black", "white"],
+    "front_panel": ["mesh", "wood"],
+    "glass_panels": [],
+    "rgb": false
+  },
+  "notes": [
+    "CPU cooler limit is 165mm if the side fan bracket is removed",
+    "360mm radiator only fits with an SFX PSU; with an ATX PSU the max is 240mm"
+  ],
+  "model3d": null
+}

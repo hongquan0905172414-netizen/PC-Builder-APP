@@ -1,0 +1,24 @@
+{
+  "id": "lian-li-o11-vision-m",
+  "name": "Lian Li O11 Vision-M",
+  "brand": "Lian Li",
+  "category": "case",
+  "released": "2026-05",
+  "source": "https://lian-li.com/product/o11-vision-m/",
+  "variants": ["O11 Vision-M", "O11 Vision-M Digital (built-in 9.2in LCD)"],
+  "size": { "depth_mm": 419.6, "width_mm": 275.1, "height_mm": 395.2 },
+  "fits": {
+    "motherboards": ["Micro-ATX", "Mini-ITX"],
+    "gpu_max_length_mm": 410,
+    "cpu_cooler_max_height_mm": 162,
+    "psu_form_factor": "ATX",
+    "psu_max_length_mm": 182,
+    "radiator_max_mm": 360
+  },
+  "looks": {
+    "colors": ["black", "white"],
+    "glass_panels": ["front", "side", "top"],
+    "rgb": false
+  },
+  "model3d": null
+}
